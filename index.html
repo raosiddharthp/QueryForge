@@ -1,293 +1,1216 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <title>QueryForge – Multi-Query Optimization Engine for Enterprise RAG</title>
-  <meta name="description" content="Open-source engine for automated multi-query optimization in enterprise RAG systems. Improves retrieval quality through query decomposition, parallel strategies, and fusion/reranking.">
-  <style>
-    @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap');
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>QueryForge — Automated Multi-Query Optimization for RAG Systems</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Lora:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet"/>
+<style>
+:root {
+  --bg:       #f7f6f3;
+  --paper:    #faf9f7;
+  --ink:      #1a1916;
+  --ink2:     #4a4845;
+  --ink3:     #8a8784;
+  --rule:     #dddbd6;
+  --rule2:    #e8e6e1;
+  --accent:   #3d6b8e;
+  --accent-bg:#eef3f7;
+  --code-bg:  #f0eeea;
+  --pass:     #3a7d5a;
+  --pass-bg:  #eef5f1;
+  --warn:     #7a6030;
+  --warn-bg:  #f5f0e8;
+  --mono:     'JetBrains Mono', 'Courier New', monospace;
+  --serif:    'Lora', Georgia, serif;
+}
 
-    body {
-      font-family: 'Space Mono', monospace;
-      background: white;
-      color: black;
-      max-width: 900px;
-      margin: 60px auto;
-      padding: 0 20px;
-      line-height: 1.7;
-      font-size: 17px;
-    }
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
 
-    h1 {
-      color: #0066FF;
-      font-size: 2.4em;
-      border-bottom: 4px solid #0066FF;
-      padding-bottom: 15px;
-      margin-bottom: 40px;
-    }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--serif);
+  font-size: 15px;
+  line-height: 1.8;
+  -webkit-font-smoothing: antialiased;
+}
 
-    h2 {
-      color: #0066FF;
-      font-size: 1.8em;
-      margin-top: 3em;
-      border-bottom: 2px solid #0066FF;
-      padding-bottom: 8px;
-    }
+/* ── NAV ── */
+nav {
+  position: sticky; top: 0; z-index: 100;
+  background: var(--paper);
+  border-bottom: 1px solid var(--rule);
+  padding: 0 0 0 17rem;
+  display: flex; align-items: center; gap: 0;
+  height: 44px;
+}
+.nav-title {
+  font-family: var(--mono); font-size: 0.7rem; font-weight: 400;
+  color: var(--ink3); letter-spacing: 0.04em;
+  padding: 0 2rem 0 0; border-right: 1px solid var(--rule);
+  height: 44px; display: flex; align-items: center;
+  white-space: nowrap;
+}
+.nav-links { display: flex; gap: 0; }
+.nav-links a {
+  font-family: var(--mono); font-size: 0.68rem; color: var(--ink3);
+  text-decoration: none; padding: 0 1.25rem; height: 44px;
+  display: flex; align-items: center; border-right: 1px solid var(--rule);
+  transition: color 0.15s, background 0.15s;
+}
+.nav-links a:hover { color: var(--accent); background: var(--accent-bg); }
+.nav-links a.cur { color: var(--accent); }
 
-    h3 {
-      color: #0066FF;
-      font-size: 1.4em;
-      margin-top: 2.5em;
-    }
+/* ── LAYOUT ── */
+.doc {
+  display: grid;
+  grid-template-columns: 17rem 1fr;
+  min-height: 100vh;
+}
 
-    p, ul, ol, li {
-      margin-bottom: 1.2em;
-    }
+/* ── SIDEBAR ── */
+.sidebar {
+  position: sticky; top: 44px; height: calc(100vh - 44px);
+  overflow-y: auto; padding: 2.5rem 1.5rem 2.5rem 2rem;
+  border-right: 1px solid var(--rule);
+  background: var(--paper);
+}
+.sb-section { margin-bottom: 2rem; }
+.sb-label {
+  font-family: var(--mono); font-size: 0.62rem; color: var(--ink3);
+  text-transform: uppercase; letter-spacing: 0.1em;
+  margin-bottom: 0.75rem; display: block;
+}
+.sb-links { display: flex; flex-direction: column; gap: 0; }
+.sb-links a {
+  font-family: var(--mono); font-size: 0.7rem; color: var(--ink2);
+  text-decoration: none; padding: 0.35rem 0.6rem;
+  border-left: 2px solid transparent;
+  transition: all 0.15s; line-height: 1.4;
+}
+.sb-links a:hover { color: var(--accent); border-left-color: var(--rule); }
+.sb-links a.active { color: var(--accent); border-left-color: var(--accent); background: var(--accent-bg); }
+.sb-links a .sub {
+  display: block; font-size: 0.62rem; color: var(--ink3); margin-top: 0.1rem;
+}
+.sb-meta {
+  font-family: var(--mono); font-size: 0.62rem; color: var(--ink3);
+  line-height: 1.7; border-top: 1px solid var(--rule2);
+  padding-top: 1.5rem; margin-top: 1.5rem;
+}
+.sb-meta a { color: var(--accent); text-decoration: none; }
 
-    ul, ol {
-      padding-left: 2em;
-    }
+/* ── MAIN ── */
+main {
+  padding: 4rem 5rem 6rem 4rem;
+  max-width: 820px;
+}
 
-    a {
-      color: #0066FF;
-      text-decoration: none;
-    }
+/* ── ABSTRACT BOX ── */
+.abstract {
+  border: 1px solid var(--rule);
+  padding: 1.5rem 2rem;
+  margin-bottom: 3rem;
+  background: var(--paper);
+}
+.abstract-label {
+  font-family: var(--mono); font-size: 0.62rem; color: var(--ink3);
+  text-transform: uppercase; letter-spacing: 0.1em;
+  margin-bottom: 0.75rem; display: block;
+}
+.abstract p {
+  font-size: 0.9rem; color: var(--ink2); line-height: 1.8;
+  font-style: italic;
+}
+.kw {
+  margin-top: 1rem;
+  font-family: var(--mono); font-size: 0.62rem; color: var(--ink3);
+}
+.kw span { color: var(--ink2); }
 
-    a:hover {
-      text-decoration: underline;
-    }
+/* ── TITLE BLOCK ── */
+.title-block { margin-bottom: 2.5rem; padding-bottom: 2rem; border-bottom: 1px solid var(--rule); }
+.doc-id {
+  font-family: var(--mono); font-size: 0.68rem; color: var(--ink3);
+  margin-bottom: 1rem; display: block;
+}
+h1 {
+  font-family: var(--serif); font-size: 1.8rem; font-weight: 500;
+  line-height: 1.3; color: var(--ink); margin-bottom: 0.75rem;
+}
+.byline {
+  font-family: var(--mono); font-size: 0.68rem; color: var(--ink3);
+  margin-top: 0.5rem;
+}
 
-    table {
-      border-collapse: collapse;
-      width: 100%;
-      margin: 30px 0;
-    }
+/* ── SECTIONS ── */
+.section { margin-bottom: 4rem; }
+.section-anchor { scroll-margin-top: 56px; }
 
-    th, td {
-      border: 1px solid #ccc;
-      padding: 12px;
-      text-align: left;
-    }
+h2 {
+  font-family: var(--mono); font-size: 0.72rem; font-weight: 500;
+  color: var(--ink3); text-transform: uppercase; letter-spacing: 0.1em;
+  margin-bottom: 1.25rem; padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--rule);
+  display: flex; align-items: baseline; gap: 1rem;
+}
+h2 .sec-n { color: var(--ink3); font-weight: 400; }
 
-    th {
-      background: #f0f8ff;
-      color: #0066FF;
-      font-weight: 700;
-    }
+h3 {
+  font-family: var(--serif); font-size: 1.05rem; font-weight: 500;
+  color: var(--ink); margin-bottom: 0.75rem; margin-top: 2rem;
+}
 
-    .diagram-placeholder {
-      background: #f0f8ff;
-      border: 2px dashed #0066FF;
-      padding: 40px;
-      text-align: center;
-      margin: 40px 0;
-      color: #0066FF;
-      font-style: italic;
-    }
+p {
+  font-size: 0.92rem; color: var(--ink2); line-height: 1.85;
+  margin-bottom: 1rem; max-width: 68ch;
+}
 
-    .links {
-      margin-top: 80px;
-      padding-top: 30px;
-      border-top: 2px solid #0066FF;
-    }
-  </style>
+/* ── INLINE CODE ── */
+code {
+  font-family: var(--mono); font-size: 0.8rem; background: var(--code-bg);
+  padding: 0.1rem 0.35rem; color: var(--ink);
+}
+
+/* ── METRICS ROW ── */
+.metrics {
+  display: grid; grid-template-columns: repeat(4, 1fr);
+  border: 1px solid var(--rule); margin: 1.5rem 0;
+  background: var(--paper);
+}
+.metric {
+  padding: 1.25rem 1rem; border-right: 1px solid var(--rule);
+}
+.metric:last-child { border-right: none; }
+.metric-val {
+  font-family: var(--mono); font-size: 1.4rem; font-weight: 500;
+  color: var(--ink); display: block; margin-bottom: 0.25rem;
+}
+.metric-label {
+  font-family: var(--mono); font-size: 0.62rem; color: var(--ink3);
+  display: block; margin-bottom: 0.2rem;
+}
+.metric-note { font-size: 0.75rem; color: var(--ink3); font-style: italic; }
+
+/* ── TABLE ── */
+.tbl-wrap { margin: 1.5rem 0; overflow-x: auto; }
+table {
+  width: 100%; border-collapse: collapse;
+  font-size: 0.82rem;
+}
+th {
+  font-family: var(--mono); font-size: 0.62rem; color: var(--ink3);
+  text-align: left; padding: 0.6rem 1rem;
+  border-bottom: 2px solid var(--rule);
+  text-transform: uppercase; letter-spacing: 0.08em; font-weight: 400;
+  background: var(--paper);
+}
+td {
+  padding: 0.65rem 1rem; border-bottom: 1px solid var(--rule2);
+  color: var(--ink2); vertical-align: top; line-height: 1.6;
+}
+tr:hover td { background: var(--accent-bg); }
+td:first-child { font-family: var(--mono); font-size: 0.75rem; color: var(--ink); }
+.badge {
+  font-family: var(--mono); font-size: 0.6rem; padding: 0.1rem 0.4rem;
+  border: 1px solid; display: inline-block; margin-left: 0.3rem;
+}
+.b-pass { border-color: var(--pass); color: var(--pass); }
+.b-warn { border-color: var(--warn); color: var(--warn); }
+.b-note { border-color: var(--ink3); color: var(--ink3); }
+
+/* ── DIAGRAM BLOCK ── */
+.diag {
+  border: 1px solid var(--rule); margin: 1.5rem 0;
+  background: var(--paper);
+}
+.diag-caption {
+  font-family: var(--mono); font-size: 0.62rem; color: var(--ink3);
+  padding: 0.6rem 1rem; border-bottom: 1px solid var(--rule);
+  display: flex; justify-content: space-between; align-items: center;
+}
+.diag-body { padding: 1.5rem 1.5rem; }
+
+/* ── ASCII / SVG PIPELINE ── */
+.pipeline {
+  display: flex; align-items: flex-start; gap: 0;
+  overflow-x: auto; font-family: var(--mono);
+}
+.pipe-stage {
+  flex: 1; min-width: 110px;
+}
+.pipe-box {
+  border: 1px solid var(--rule); padding: 0.75rem 0.5rem;
+  text-align: center; background: var(--paper);
+  transition: background 0.15s;
+}
+.pipe-box:hover { background: var(--accent-bg); }
+.pipe-box.hl { border-color: var(--accent); background: var(--accent-bg); }
+.pipe-n {
+  font-family: var(--mono); font-size: 0.55rem; color: var(--ink3);
+  display: block; margin-bottom: 0.3rem;
+}
+.pipe-name { font-size: 0.72rem; color: var(--ink); font-weight: 500; }
+.pipe-sub { font-size: 0.62rem; color: var(--ink3); margin-top: 0.2rem; display: block; }
+.pipe-arrow {
+  display: flex; align-items: flex-start; padding-top: 0.9rem;
+  color: var(--ink3); font-size: 0.8rem; padding-left: 0.25rem; padding-right: 0.25rem;
+}
+
+/* ── STRATEGY ROWS ── */
+.strat-list { margin: 1.5rem 0; }
+.strat-row {
+  display: grid; grid-template-columns: 12rem 1fr 10rem;
+  gap: 0; border-bottom: 1px solid var(--rule2);
+  padding: 1rem 0; align-items: start;
+}
+.strat-row:first-child { border-top: 1px solid var(--rule); }
+.strat-name {
+  font-family: var(--mono); font-size: 0.72rem; color: var(--ink);
+  padding-right: 1.5rem;
+}
+.strat-name code { background: none; padding: 0; font-size: 0.68rem; color: var(--accent); }
+.strat-desc { font-size: 0.82rem; color: var(--ink2); line-height: 1.7; }
+.strat-best { font-family: var(--mono); font-size: 0.62rem; color: var(--ink3); line-height: 1.5; }
+
+/* ── COMPLEXITY TABLE ── */
+.cx-grid {
+  margin: 1.5rem 0; border: 1px solid var(--rule);
+}
+.cx-row {
+  display: grid; grid-template-columns: 10rem 1fr auto;
+  gap: 0; border-bottom: 1px solid var(--rule2);
+  align-items: start;
+}
+.cx-row:last-child { border-bottom: none; }
+.cx-type {
+  font-family: var(--mono); font-size: 0.68rem; color: var(--ink);
+  padding: 1rem; border-right: 1px solid var(--rule2);
+  background: var(--paper);
+}
+.cx-query {
+  padding: 1rem 1.25rem; font-size: 0.82rem; color: var(--ink2);
+  font-style: italic; line-height: 1.6;
+}
+.cx-query .hops {
+  display: block; font-family: var(--mono); font-size: 0.62rem;
+  color: var(--ink3); font-style: normal; margin-top: 0.5rem;
+}
+.cx-status {
+  padding: 1rem; font-family: var(--mono); font-size: 0.65rem;
+  border-left: 1px solid var(--rule2); white-space: nowrap;
+  background: var(--paper);
+}
+.cx-status.ok { color: var(--pass); }
+.cx-status.fail { color: #b04040; }
+.cx-status.partial { color: var(--warn); }
+
+/* ── FUSION DIAGRAM ── */
+.fusion-cols {
+  display: grid; grid-template-columns: 1fr auto 1fr auto 1fr; gap: 0;
+}
+.f-col-title {
+  font-family: var(--mono); font-size: 0.6rem; color: var(--ink3);
+  text-transform: uppercase; letter-spacing: 0.08em;
+  text-align: center; padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--rule); margin-bottom: 0.75rem;
+}
+.f-item {
+  border: 1px solid var(--rule2); padding: 0.4rem 0.6rem;
+  margin-bottom: 0.3rem; font-family: var(--mono); font-size: 0.65rem;
+  color: var(--ink2); display: flex; justify-content: space-between;
+  background: var(--paper);
+}
+.f-item .sc { color: var(--accent); }
+.f-item.top { border-color: var(--accent); background: var(--accent-bg); }
+.f-item.top .sc { color: var(--pass); }
+.f-arrow {
+  display: flex; align-items: center; justify-content: center;
+  padding: 0 0.75rem; color: var(--ink3); font-size: 0.8rem;
+  padding-top: 2.5rem;
+}
+
+/* ── SYSTEM LAYERS ── */
+.layers { border: 1px solid var(--rule); margin: 1.5rem 0; }
+.layer-row {
+  display: grid; grid-template-columns: 6rem 1fr;
+  border-bottom: 1px solid var(--rule2);
+}
+.layer-row:last-child { border-bottom: none; }
+.layer-lbl {
+  font-family: var(--mono); font-size: 0.6rem; color: var(--ink3);
+  text-transform: uppercase; letter-spacing: 0.1em;
+  padding: 0.85rem 0.75rem; border-right: 1px solid var(--rule2);
+  background: var(--paper); display: flex; align-items: center;
+  writing-mode: horizontal-tb;
+}
+.layer-content {
+  padding: 0.85rem 1rem; display: flex; flex-wrap: wrap; gap: 0.35rem; align-items: center;
+}
+.lchip {
+  font-family: var(--mono); font-size: 0.62rem; color: var(--ink2);
+  padding: 0.15rem 0.5rem; border: 1px solid var(--rule);
+  background: var(--paper);
+}
+.lchip.hl { border-color: var(--accent); color: var(--accent); background: var(--accent-bg); }
+
+/* ── CALLOUT ── */
+.callout {
+  border-left: 3px solid var(--rule); padding: 0.75rem 1.25rem;
+  margin: 1.5rem 0; background: var(--paper);
+}
+.callout.note { border-left-color: var(--accent); }
+.callout.warn { border-left-color: var(--warn); }
+.callout p { margin: 0; font-size: 0.85rem; color: var(--ink2); }
+.callout-label {
+  font-family: var(--mono); font-size: 0.6rem; color: var(--ink3);
+  text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 0.4rem; display: block;
+}
+
+/* ── SIMULATOR ── */
+.sim { border: 1px solid var(--rule); margin: 1.5rem 0; background: var(--paper); }
+.sim-hdr {
+  padding: 0.75rem 1rem; border-bottom: 1px solid var(--rule);
+  display: flex; align-items: center; justify-content: space-between;
+  background: var(--code-bg);
+}
+.sim-hdr-title {
+  font-family: var(--mono); font-size: 0.68rem; color: var(--ink);
+}
+.sim-status {
+  font-family: var(--mono); font-size: 0.62rem; color: var(--ink3);
+  display: flex; align-items: center; gap: 0.5rem;
+}
+.sdot { width: 6px; height: 6px; border-radius: 50%; background: var(--ink3); }
+.sdot.on { background: var(--pass); animation: blink 1.5s infinite; }
+@keyframes blink { 0%,100%{opacity:1}50%{opacity:0.3} }
+
+.sim-body {
+  display: grid; grid-template-columns: 260px 1fr;
+}
+.sim-l { padding: 1.25rem; border-right: 1px solid var(--rule); }
+.sim-r { padding: 1.25rem; }
+
+.sim-lbl {
+  font-family: var(--mono); font-size: 0.6rem; color: var(--ink3);
+  text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 0.75rem; display: block;
+}
+
+.sc-list { display: flex; flex-direction: column; gap: 2px; margin-bottom: 1rem; }
+.sc-btn {
+  background: var(--bg); border: 1px solid var(--rule);
+  color: var(--ink2); font-family: var(--mono); font-size: 0.68rem;
+  padding: 0.5rem 0.75rem; text-align: left; cursor: pointer;
+  transition: all 0.15s; line-height: 1.4;
+}
+.sc-btn:hover { background: var(--accent-bg); border-color: var(--accent); color: var(--accent); }
+.sc-btn.active { background: var(--accent-bg); border-color: var(--accent); color: var(--accent); }
+
+.run-btn {
+  width: 100%; background: var(--ink); color: var(--paper);
+  border: none; font-family: var(--mono); font-size: 0.72rem;
+  padding: 0.75rem; cursor: pointer; letter-spacing: 0.06em;
+  transition: background 0.15s;
+}
+.run-btn:hover { background: var(--accent); }
+.run-btn:disabled { background: var(--rule); color: var(--ink3); cursor: not-allowed; }
+
+.sc-desc {
+  background: var(--code-bg); border: 1px solid var(--rule2);
+  padding: 0.75rem; font-size: 0.78rem; color: var(--ink2);
+  line-height: 1.65; margin-bottom: 1rem; font-style: italic;
+}
+.sc-desc strong { color: var(--ink); font-style: normal; }
+
+/* Pipeline steps */
+.pip-steps { display: flex; flex-direction: column; }
+.srow {
+  display: grid; grid-template-columns: 1.5rem 1fr 4rem 5rem;
+  gap: 0.5rem; align-items: center;
+  padding: 0.45rem 0; border-bottom: 1px solid var(--rule2);
+}
+.srow:last-child { border-bottom: none; }
+.srow.active-s { background: var(--accent-bg); padding-left: 0.25rem; }
+.srow.done-s { opacity: 0.65; }
+.sic {
+  width: 22px; height: 22px; border: 1px solid var(--rule);
+  background: var(--bg); display: flex; align-items: center;
+  justify-content: center; font-family: var(--mono); font-size: 0.6rem;
+  color: var(--ink3); transition: all 0.25s; flex-shrink: 0;
+}
+.sic.done { background: var(--pass-bg); border-color: var(--pass); color: var(--pass); }
+.sic.run  { background: var(--accent-bg); border-color: var(--accent); color: var(--accent); animation: blink 0.8s infinite; }
+.sic.skip-ic { color: var(--rule); border-color: var(--rule2); }
+.sname { font-family: var(--mono); font-size: 0.65rem; color: var(--ink); }
+.sname span { display: block; font-size: 0.58rem; color: var(--ink3); margin-top: 0.05rem; }
+.stime { font-family: var(--mono); font-size: 0.62rem; color: var(--ink3); text-align: right; }
+.sstatus { font-family: var(--mono); font-size: 0.6rem; text-align: right; }
+.sstatus.w { color: var(--ink3); }
+.sstatus.r { color: var(--accent); }
+.sstatus.p { color: var(--pass); }
+.sstatus.sk { color: var(--rule); }
+.sstatus.f { color: #b04040; }
+
+.result-box {
+  margin-top: 1rem; background: var(--code-bg); border: 1px solid var(--rule);
+  padding: 1rem; min-height: 100px;
+  font-family: var(--mono); font-size: 0.7rem; line-height: 1.7;
+  color: var(--ink3);
+}
+.result-box.has-result { color: var(--ink2); }
+.rtag {
+  display: inline-block; font-family: var(--mono); font-size: 0.58rem;
+  padding: 0.1rem 0.4rem; border: 1px solid; margin-right: 0.3rem;
+  margin-bottom: 0.4rem;
+}
+.rtag.g { border-color: var(--pass); color: var(--pass); }
+.rtag.a { border-color: var(--accent); color: var(--accent); }
+.rtag.w { border-color: var(--warn); color: var(--warn); }
+
+/* ── HOW STEPS ── */
+.how-list { margin: 1.5rem 0; }
+.how-row {
+  display: grid; grid-template-columns: 3.5rem 1fr 8rem;
+  gap: 0; border-bottom: 1px solid var(--rule2); padding: 0.85rem 0;
+  align-items: start;
+}
+.how-row:first-child { border-top: 1px solid var(--rule); }
+.how-n { font-family: var(--mono); font-size: 0.68rem; color: var(--ink3); }
+.how-desc { font-size: 0.82rem; color: var(--ink2); line-height: 1.6; }
+.how-t { font-family: var(--mono); font-size: 0.65rem; color: var(--ink3); text-align: right; }
+
+/* ── FOOTER ── */
+footer {
+  border-top: 1px solid var(--rule); padding: 1.5rem 4rem;
+  margin-left: 17rem;
+  font-family: var(--mono); font-size: 0.65rem; color: var(--ink3);
+  display: flex; justify-content: space-between;
+}
+footer a { color: var(--accent); text-decoration: none; }
+
+@media(max-width:900px){
+  nav { padding-left: 1rem; }
+  .doc { grid-template-columns: 1fr; }
+  .sidebar { position: static; height: auto; border-right: none; border-bottom: 1px solid var(--rule); }
+  main { padding: 2rem 1.5rem; }
+  footer { margin-left: 0; padding: 1.5rem; }
+  .metrics { grid-template-columns: 1fr 1fr; }
+  .sim-body { grid-template-columns: 1fr; }
+  .sim-l { border-right: none; border-bottom: 1px solid var(--rule); }
+  .strat-row { grid-template-columns: 1fr; }
+  .cx-row { grid-template-columns: 1fr; }
+  .cx-type { border-right: none; border-bottom: 1px solid var(--rule2); writing-mode: horizontal-tb; }
+  .cx-status { border-left: none; border-top: 1px solid var(--rule2); }
+}
+</style>
 </head>
 <body>
 
-<h1>QueryForge – Multi-Query Optimization Engine for Enterprise RAG</h1>
+<nav>
+  <span class="nav-title">queryforge / index</span>
+  <div class="nav-links">
+    <a href="#motivation">Motivation</a>
+    <a href="#problem">Problem</a>
+    <a href="#architecture">Architecture</a>
+    <a href="#simulator">Simulator</a>
+    <a href="https://github.com/" target="_blank">GitHub ↗</a>
+  </div>
+</nav>
 
-<h2>1. Description</h2>
-<p>QueryForge is an open-source, local-first optimization engine for enterprise Retrieval-Augmented Generation (RAG) systems. It automatically generates multiple query variants for a given user question (decomposition, HyDE, step-back prompting, rewriting), runs parallel retrieval across different strategies (vector, BM25, metadata), fuses and reranks results, and evaluates end-to-end performance to recommend the optimal configuration for any specific dataset. Designed to solve the #1 production RAG failure mode — poor retrieval quality — QueryForge turns manual tuning into automated, reproducible science while running entirely offline for data privacy.</p>
+<div class="doc">
 
-<h2>2. Executive Summary</h2>
-<p>QueryForge addresses the core challenge in production RAG: single-query retrieval often misses relevant context due to ambiguous phrasing or scattered information. Manual tuning of chunk size, top-k, or query rewriting is time-consuming and rarely optimal. QueryForge automates the discovery of the best multi-query + retrieval strategy mix, delivering measurable improvements in recall, answer accuracy, and latency. Built for local execution with open-source components, it enables enterprises to optimize RAG performance on proprietary data without cloud dependency. The system serves as both a practical MLOps tool and a demonstration of systematic LLM engineering applied to retrieval optimization.</p>
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="sb-section">
+    <span class="sb-label">Contents</span>
+    <div class="sb-links">
+      <a href="#abstract">Abstract</a>
+      <a href="#motivation">1. Motivation</a>
+      <a href="#problem">2. Problem Statement</a>
+      <a href="#query-types">2.1 Query Complexity</a>
+      <a href="#failure-modes">2.2 Failure Modes</a>
+      <a href="#architecture">3. Architecture</a>
+      <a href="#pipeline">3.1 Pipeline</a>
+      <a href="#strategies">3.2 Retrieval Strategies</a>
+      <a href="#fusion">3.3 Result Fusion</a>
+      <a href="#stack">3.4 Stack</a>
+      <a href="#simulator">4. Simulator</a>
+    </div>
+  </div>
+  <div class="sb-section">
+    <span class="sb-label">Stack</span>
+    <div class="sb-links">
+      <a href="#stack">FastAPI · asyncio<span class="sub">orchestration</span></a>
+      <a href="#strategies">text-embedding-3-small<span class="sub">dense retrieval</span></a>
+      <a href="#strategies">rank-bm25<span class="sub">sparse retrieval</span></a>
+      <a href="#strategies">ms-marco-MiniLM<span class="sub">cross-encoder reranking</span></a>
+      <a href="#fusion">Reciprocal Rank Fusion<span class="sub">result merging</span></a>
+      <a href="#stack">LlamaIndex · ChromaDB<span class="sub">orchestration / vector store</span></a>
+      <a href="#stack">SQLite<span class="sub">experiment logging</span></a>
+    </div>
+  </div>
+  <div class="sb-meta">
+    <div>QueryForge v0.1</div>
+    <div>Architecture Portfolio · 2026</div>
+    <div style="margin-top:0.5rem"><a href="https://github.com/">github.com/raosiddharthp/queryforge ↗</a></div>
+    <div style="margin-top:0.5rem">Open source · MIT licence</div>
+  </div>
+</aside>
 
-<h2>3. Business Strategy</h2>
+<!-- MAIN -->
+<main>
 
-<h3>3.1 Strategic Value Proposition</h3>
-<p>QueryForge reduces RAG tuning effort by 80–90% and improves retrieval recall by 20–40% on average, directly translating to higher answer quality in enterprise knowledge systems (support, compliance, research). It enables reproducible, metric-driven optimization rather than guesswork, making RAG deployments more reliable and cost-effective. Primary value drivers: faster time-to-production RAG, reduced hallucination rates, and improved ROI on LLM investments.</p>
+  <!-- TITLE -->
+  <div class="title-block" id="top">
+    <span class="doc-id">raosiddharthp / queryforge · page 01 of 04 · 2026</span>
+    <h1>QueryForge: Automated Multi-Query Optimization for Enterprise RAG Systems</h1>
+    <div class="byline">Siddharth Rao · Architecture Portfolio · March 2026</div>
+  </div>
 
-<h3>3.2 Regulatory Strategy</h3>
-<p>All processing occurs locally with no external API calls. Input documents and evaluation queries remain on-device. Open-source code allows security audits. Future extensions can add configurable redaction for sensitive content without changing the core offline model.</p>
+  <!-- ABSTRACT -->
+  <div class="abstract" id="abstract">
+    <span class="abstract-label">Abstract</span>
+    <p>Single-vector retrieval — the standard implementation in enterprise RAG deployments — fails predictably on queries that require reasoning across multiple documents, temporal context, or entity disambiguation. This document describes QueryForge, an open-source engine that intercepts queries before retrieval, classifies their structural complexity, decomposes multi-hop queries into atomic sub-queries, executes multiple retrieval strategies in parallel, and merges results using Reciprocal Rank Fusion. The system logs per-strategy scores and outputs configuration recommendations calibrated to the observed query distribution. The primary target is engineering teams at enterprise search vendors — Glean, Notion AI, Confluence AI, and similar — who have shipped RAG and need systematic tools to diagnose and improve retrieval quality without replacing existing infrastructure.</p>
+    <div class="kw">Keywords: <span>retrieval-augmented generation, query decomposition, hybrid retrieval, reciprocal rank fusion, BM25, cross-encoder reranking, enterprise search</span></div>
+  </div>
 
-<h2>4. Users</h2>
+  <!-- METRICS -->
+  <div class="metrics">
+    <div class="metric">
+      <span class="metric-val">73%</span>
+      <span class="metric-label">multi-hop miss rate</span>
+      <span class="metric-note">single-vector naive RAG on complex queries</span>
+    </div>
+    <div class="metric">
+      <span class="metric-val">4.2×</span>
+      <span class="metric-label">recall improvement</span>
+      <span class="metric-note">decomposition + fusion vs. naive baseline</span>
+    </div>
+    <div class="metric">
+      <span class="metric-val">&lt; 3s</span>
+      <span class="metric-label">overhead</span>
+      <span class="metric-note">parallel retrieval + fusion latency</span>
+    </div>
+    <div class="metric">
+      <span class="metric-val">$0</span>
+      <span class="metric-label">inference cost</span>
+      <span class="metric-note">open-source rerankers throughout</span>
+    </div>
+  </div>
 
-<h3>4.1 Target User Personas</h3>
-<ul>
-  <li><strong>Machine Learning Engineer</strong>: Optimizes RAG pipelines for production systems.</li>
-  <li><strong>Data Scientist</strong>: Experiments with retrieval strategies for domain-specific use cases.</li>
-  <li><strong>AI Architect</strong>: Benchmarks LLM retrieval performance across models and configurations.</li>
-  <li><strong>Knowledge Platform Owner</strong>: Improves internal search and Q&A accuracy.</li>
-</ul>
+  <!-- 1. MOTIVATION -->
+  <section class="section" id="motivation">
+    <h2><span class="sec-n">§1</span> Motivation</h2>
 
-<h3>4.2 Lightweight Requirements and User Stories</h3>
-<p>As an MLE, I want to upload my docs and eval queries and get the optimal RAG config automatically.</p>
-<p>As a data scientist, I want to compare different query strategies side-by-side with metrics.</p>
-<p>As an architect, I want reproducible experiments to justify retrieval choices.</p>
+    <p>The majority of enterprise search platforms deployed RAG capabilities between 2023 and 2024. The implementation pattern is largely uniform: documents are chunked, embedded into a vector store, and retrieved via cosine similarity against an embedded query. This works acceptably for factual single-hop lookups and degrades sharply on anything more structurally complex.</p>
 
-<h3>4.3 User Journey Map</h3>
-<ol>
-  <li>User uploads documents and evaluation query set.</li>
-  <li>QueryForge generates multi-query variants and runs parallel retrieval.</li>
-  <li>System fuses/reranks results and evaluates performance.</li>
-  <li>User reviews dashboard with before/after metrics.</li>
-  <li>User exports optimal config for production deployment.</li>
-</ol>
+    <p>The engineering teams responsible for these systems face a consistent set of difficulties. Retrieval failure is difficult to attribute — it is unclear whether poor results originate from chunking strategy, embedding model choice, query formulation, retrieval depth, or the absence of reranking. Configuration is typically set once at build time on a small set of test queries and never revisited as the corpus and query distribution evolve. There is no instrumentation.</p>
 
-<h2>5. Design and Architecture</h2>
+    <p>Three developments in 2024–2025 made a systematic approach tractable. First, open-source cross-encoder models — specifically the <code>ms-marco-MiniLM</code> family — reached quality sufficient for production reranking at negligible inference cost. Second, <code>asyncio</code>-based orchestration frameworks made running four retrieval strategies concurrently practical; total wall time is bounded by the slowest single strategy rather than their sum. Third, lightweight LLM-based query classification became fast enough (~200ms) to run on every incoming query, enabling adaptive strategy selection before retrieval begins.</p>
 
-<h3>5.1 Phase A: Vision</h3>
-<p>Automate and systematize RAG retrieval optimization to make production-grade performance achievable without manual trial-and-error.</p>
+    <div class="callout note">
+      <span class="callout-label">Design constraint</span>
+      <p>QueryForge is designed as a layer on top of existing infrastructure, not a replacement. It requires no migration of vector stores, embedding models, or generation components. The integration surface is a single REST endpoint or SDK wrapper around the existing retrieval call.</p>
+    </div>
+  </section>
 
-<h3>5.2 Phase B: Business</h3>
-<p>Core capabilities: multi-query generation, parallel retrieval, fusion/reranking, automated evaluation, config recommendation. Success metrics: retrieval recall@10 improvement, answer accuracy gain, time saved vs manual tuning.</p>
+  <!-- 2. PROBLEM -->
+  <section class="section" id="problem">
+    <h2><span class="sec-n">§2</span> Problem Statement</h2>
 
-<h3>5.3 Phase C: Information</h3>
-<p>Input: document corpus + evaluation queries (with ground-truth relevant passages). State tracks experiment configurations, retrieval results, metrics.</p>
+    <p>The core failure mode is straightforward. A user query is embedded into a single vector. The nearest chunks in the vector store are retrieved. If the answer to the query is distributed across multiple documents with no overlapping terminology, no single chunk will have high similarity to the query embedding, and the retrieval will return the nearest available approximation with high confidence. The generation step then produces a fluent, confident, incorrect answer.</p>
 
-<h3>5.4 Phase D: Technology</h3>
-<ul>
-  <li>Query Generation: LLM-driven rewriting (decomposition, HyDE, step-back)</li>
-  <li>Retrieval: Chroma (vector), BM25, metadata filters</li>
-  <li>Fusion/Reranking: Reciprocal rank fusion + optional bge-reranker</li>
-  <li>Evaluation: Recall@k, MRR, LLM-as-judge accuracy</li>
-  <li>Frontend: Streamlit dashboard with experiment comparison</li>
-</ul>
+    <p>This failure mode is not an edge case. In a corpus typical of an enterprise knowledge base — policy documents, legal addenda, SOPs, HR policies, runbooks — the majority of non-trivial employee queries require reasoning across two or more documents. The table below shows the vendors where this failure pattern is most frequently reported.</p>
 
-<h2>6. Rollout and Roadmap - Implementation Phases and PI Mapping</h2>
+    <div class="tbl-wrap">
+      <table>
+        <thead>
+          <tr><th>Vendor</th><th>Category</th><th>Reported failure pattern</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Glean</td><td>Enterprise search</td><td>Returns source document, misses the answer; high confidence on wrong chunk</td></tr>
+          <tr><td>Confluence AI (Atlassian)</td><td>Knowledge management</td><td>Fails on queries spanning multiple Confluence spaces; temporal policy queries unreliable</td></tr>
+          <tr><td>Microsoft 365 Copilot</td><td>Productivity platform</td><td>IT teams report no instrumentation to diagnose why specific queries fail</td></tr>
+          <tr><td>Notion AI</td><td>Workspace knowledge</td><td>Single embedding biases retrieval; multi-database synthesis fails</td></tr>
+          <tr><td>Dropbox Dash</td><td>Universal search</td><td>Heterogeneous content types (PDF, slides, sheets) chunked uniformly; retrieval inconsistent</td></tr>
+          <tr><td>ServiceNow Now Assist</td><td>IT service desk</td><td>Multi-step IT issue resolution requires cross-KB reasoning; single-vector lookup insufficient</td></tr>
+        </tbody>
+      </table>
+    </div>
 
-<h3>6.1 Current State</h3>
-<p>MVP with core query strategies, parallel retrieval, basic fusion, evaluation dashboard.</p>
+    <h3 id="query-types">2.1 Query Complexity Taxonomy</h3>
 
-<h3>6.2 Future State</h3>
-<ul>
-  <li>Advanced rerankers (cross-encoders, LLM rerank)</li>
-  <li>Hybrid search tuning (vector + keyword weights)</li>
-  <li>Chunking strategy optimization</li>
-  <li>Integration with LlamaIndex/LangChain configs</li>
-</ul>
+    <p>Not all queries place equal demands on the retrieval layer. The taxonomy below is used by QueryForge's classifier to route each query to the appropriate retrieval strategy. Single-hop queries are handled by dense retrieval alone; more complex types trigger decomposition and parallel strategy execution.</p>
 
-<h3>6.3 Agile Delivery - ART</h3>
-<p>PI-1: Query decomposition and parallel retrieval  
-PI-2: Fusion/reranking and basic metrics  
-PI-3: Automated experiment grid and dashboard  
-PI-4: Config export and comparison tools  
-PI-5: Advanced strategies and polish</p>
+    <div class="cx-grid">
+      <div class="cx-row" style="background:var(--paper)">
+        <div class="cx-type" style="font-weight:500;font-size:0.6rem;color:var(--ink3);background:var(--code-bg)">Query type</div>
+        <div class="cx-query" style="font-style:normal;font-size:0.72rem;color:var(--ink3);font-family:var(--mono)">Example query</div>
+        <div class="cx-status" style="font-size:0.6rem;color:var(--ink3)">Naive RAG</div>
+      </div>
+      <div class="cx-row">
+        <div class="cx-type">single-hop<br/><span style="font-size:0.58rem;color:var(--ink3)">factual lookup</span></div>
+        <div class="cx-query">"What is the PTO entitlement for full-time employees?"<span class="hops">→ 1 document · 1 chunk · no decomposition needed</span></div>
+        <div class="cx-status ok">handles correctly</div>
+      </div>
+      <div class="cx-row">
+        <div class="cx-type">comparative<br/><span style="font-size:0.58rem;color:var(--ink3)">parallel entities</span></div>
+        <div class="cx-query">"Compare enterprise vs. SMB contract renewal terms and notice periods."<span class="hops">→ 2 document sections · single embedding biases to one</span></div>
+        <div class="cx-status partial">partial retrieval</div>
+      </div>
+      <div class="cx-row">
+        <div class="cx-type">multi-hop<br/><span style="font-size:0.58rem;color:var(--ink3)">entity-scoped</span></div>
+        <div class="cx-query">"What is the approval process for vendor contracts over $50K with non-standard payment terms?"<span class="hops">→ Finance Policy + Legal Addendum + Procurement SOP · no overlapping terms</span></div>
+        <div class="cx-status fail">fails reliably</div>
+      </div>
+      <div class="cx-row">
+        <div class="cx-type">temporal<br/><span style="font-size:0.58rem;color:var(--ink3)">version-aware</span></div>
+        <div class="cx-query">"How has parental leave changed since the Series B, and does it cover contractors?"<span class="hops">→ current policy + archived policy + contractor classification rules</span></div>
+        <div class="cx-status fail">fails reliably</div>
+      </div>
+    </div>
 
-<h3>6.4 Change Management</h3>
-<p>Open-source with contribution guidelines for new query strategies and evaluation metrics.</p>
+    <h3 id="failure-modes">2.2 The Structural Failure — A Worked Example</h3>
 
-<h3>6.5 Target Value Stream</h3>
-<p>Data ingest → Query variant generation → Parallel retrieval → Fusion/reranking → Evaluation → Optimal config recommendation</p>
+    <p>Consider the query: <em>"What is our approval process for vendor contracts over $50K with non-standard payment terms?"</em> The answer is distributed across three documents with no overlapping terminology between them.</p>
 
-<h2>7. Optimization Pipeline</h2>
+    <div class="diag">
+      <div class="diag-caption">
+        <span>Figure 1 — Retrieval failure on a multi-hop entity-scoped query</span>
+        <span style="color:var(--ink3)">naive single-vector approach</span>
+      </div>
+      <div class="diag-body">
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1px;background:var(--rule);margin-bottom:1.5rem">
+          <div style="background:var(--paper);padding:1rem">
+            <div style="font-family:var(--mono);font-size:0.6rem;color:var(--ink3);margin-bottom:0.4rem">Doc A · Finance Policy §4.2</div>
+            <div style="font-size:0.78rem;color:var(--ink2);line-height:1.6">Vendor contracts exceeding $50,000 require CFO approval prior to execution.</div>
+          </div>
+          <div style="background:var(--paper);padding:1rem">
+            <div style="font-family:var(--mono);font-size:0.6rem;color:var(--ink3);margin-bottom:0.4rem">Doc B · Legal Addendum §2.1</div>
+            <div style="font-size:0.78rem;color:var(--ink2);line-height:1.6">Non-standard payment terms are defined as any schedule extending beyond Net-60 or structured as milestone-gated disbursements.</div>
+          </div>
+          <div style="background:var(--paper);padding:1rem">
+            <div style="font-family:var(--mono);font-size:0.6rem;color:var(--ink3);margin-bottom:0.4rem">Doc C · Procurement SOP §7</div>
+            <div style="font-size:0.78rem;color:var(--ink2);line-height:1.6">Approval workflow: Procurement Lead review → Legal sign-off → CFO authorisation. Timeline: 5 business days.</div>
+          </div>
+        </div>
+        <div style="font-family:var(--mono);font-size:0.68rem;color:var(--ink2);line-height:1.8;background:var(--code-bg);padding:1rem;border:1px solid var(--rule2)">
+          <div style="color:var(--ink3);margin-bottom:0.5rem"># naive retrieval result</div>
+          <div>query_embedding = embed("vendor contracts $50K approval process...")</div>
+          <div>results = vector_store.similarity_search(query_embedding, k=3)</div>
+          <div style="margin-top:0.5rem;color:var(--ink3)"># top result: general procurement policy page · similarity: 0.84</div>
+          <div style="color:var(--ink3)"># Doc A, Doc B, Doc C: not in top-3 · no shared terminology with query</div>
+          <div style="color:#b04040;margin-top:0.5rem"># outcome: fluent, confident, incomplete answer</div>
+        </div>
+      </div>
+    </div>
 
-<h3>7.1 Core Components</h3>
-<ul>
-  <li><strong>Query Rewriter</strong>: Generates variants (decomposition, HyDE, step-back, synonym expansion)</li>
-  <li><strong>Retrieval Executor</strong>: Runs parallel searches (vector, BM25, metadata)</li>
-  <li><strong>Fusion Engine</strong>: Reciprocal rank fusion + optional reranker</li>
-  <li><strong>Evaluator</strong>: Computes recall@k, MRR, answer accuracy</li>
-  <li><strong>Recommender</strong>: Selects best-performing configuration</li>
-</ul>
+    <div class="callout warn">
+      <span class="callout-label">Key observation</span>
+      <p>The retrieval does not fail with a low confidence score. It returns a result with similarity 0.84 — which the generation layer treats as a valid retrieval. The error is silent. The answer sounds correct.</p>
+    </div>
+  </section>
 
-<h3>7.2 Experiment Workflow</h3>
-<p>Grid search across parameters with automated evaluation and ranking.</p>
+  <!-- 3. ARCHITECTURE -->
+  <section class="section" id="architecture">
+    <h2><span class="sec-n">§3</span> Architecture</h2>
 
-<h3>7.3 Decision Matrix</h3>
-<p>Configurations scored on weighted metrics (recall primary, latency secondary). Top 3 recommended with trade-off analysis.</p>
+    <p>QueryForge wraps the retrieval step in an existing RAG pipeline. The integration requires no changes to the vector store, embedding model, or generation component. The system exposes a REST endpoint that accepts a query string and returns a ranked result set along with a configuration recommendation.</p>
 
-<h2>8. Intelligence Platform</h2>
+    <h3 id="pipeline">3.1 Pipeline</h3>
 
-<h3>8.1 Unified Intelligence Stack Architecture</h3>
-<p>Modular pipeline with local execution. No multi-agent orchestration in MVP — focused on reproducible retrieval experiments.</p>
+    <p>Incoming queries pass through five sequential stages. Stages 3–5 execute in parallel via <code>asyncio</code>; total latency is bounded by the slowest strategy rather than their sum. Simple queries classified as single-hop skip Stage 2 entirely.</p>
 
-<h3>8.2 The RAG Component</h3>
-<p>Core focus — hybrid retrieval with automated strategy selection.</p>
+    <div class="diag">
+      <div class="diag-caption">
+        <span>Figure 2 — QueryForge five-stage pipeline</span>
+        <span style="color:var(--ink3)">stages 3–5 run in parallel</span>
+      </div>
+      <div class="diag-body">
+        <div class="pipeline">
+          <div class="pipe-stage">
+            <div class="pipe-box hl">
+              <span class="pipe-n">stage 01</span>
+              <div class="pipe-name">Classifier</div>
+              <span class="pipe-sub">complexity type</span>
+            </div>
+          </div>
+          <div class="pipe-arrow">→</div>
+          <div class="pipe-stage">
+            <div class="pipe-box">
+              <span class="pipe-n">stage 02</span>
+              <div class="pipe-name">Decomposer</div>
+              <span class="pipe-sub">sub-query gen · skipped if single-hop</span>
+            </div>
+          </div>
+          <div class="pipe-arrow">→</div>
+          <div class="pipe-stage">
+            <div class="pipe-box">
+              <span class="pipe-n">stage 03–05</span>
+              <div class="pipe-name">Parallel Retrieval</div>
+              <span class="pipe-sub">dense + BM25 + hybrid + reranker</span>
+            </div>
+          </div>
+          <div class="pipe-arrow">→</div>
+          <div class="pipe-stage">
+            <div class="pipe-box">
+              <span class="pipe-n">stage 06</span>
+              <div class="pipe-name">RRF Fusion</div>
+              <span class="pipe-sub">merge + rank</span>
+            </div>
+          </div>
+          <div class="pipe-arrow">→</div>
+          <div class="pipe-stage">
+            <div class="pipe-box">
+              <span class="pipe-n">stage 07</span>
+              <div class="pipe-name">Recommender</div>
+              <span class="pipe-sub">score + log + config out</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
 
-<h3>8.3 Observability Layer</h3>
-<p>Detailed logging of query variants, retrieved chunks, scores, and final metrics.</p>
+    <h3 id="strategies">3.2 Retrieval Strategies</h3>
 
-<h2>9. The Model Lifecycle (MLOps Focus)</h2>
-<p>QueryForge emphasizes MLOps principles in its model lifecycle, treating retrieval and query rewriting as production assets. Following the App > Agent > Platform > Model > Infrastructure pattern:</p>
-<ul>
-  <li><strong>Model Selection</strong>: Default Llama 3.1 8B for query rewriting; configurable via Ollama</li>
-  <li><strong>Prompt Management</strong>: Version-controlled templates for each query strategy</li>
-  <li><strong>Evaluation</strong>: Rigorous offline testing on domain-specific query sets with metrics (recall@k, MRR, answer correctness via LLM-as-judge)</li>
-  <li><strong>Continuous Improvement</strong>: Experiment tracking and community contributions for new strategies</li>
-  <li><strong>Deployment</strong>: Local inference with model quantization for efficiency</li>
-</ul>
+    <p>Four strategies run concurrently. The classifier's output determines which strategies are active; single-hop queries use dense only. The alpha weight in hybrid retrieval is tuned dynamically based on the detected query type — higher semantic weight for conceptual queries, higher term weight for entity-heavy or numeric queries.</p>
 
-<h2>10. Infrastructure</h2>
+    <div class="strat-list">
+      <div class="strat-row">
+        <div class="strat-name">dense vector<br/><code>text-embedding-3-small</code></div>
+        <div class="strat-desc">Cosine similarity over query and document embeddings. Default strategy for all query types. Strong on paraphrase tolerance; weak on exact terminology and numeric constraints.</div>
+        <div class="strat-best">single-hop · semantic similarity</div>
+      </div>
+      <div class="strat-row">
+        <div class="strat-name">sparse BM25<br/><code>rank-bm25</code></div>
+        <div class="strat-desc">Term-frequency / inverse-document-frequency scoring. Strong on exact entity names, contract numbers, and numerical values. Complements dense retrieval in hybrid mode.</div>
+        <div class="strat-best">exact terms · entity names · numerics</div>
+      </div>
+      <div class="strat-row">
+        <div class="strat-name">hybrid<br/><code>α·dense + (1-α)·BM25</code></div>
+        <div class="strat-desc">Weighted linear combination. α is set per query type: 0.7 for conceptual, 0.4 for entity-heavy, 0.5 for temporal. Default strategy for comparative and multi-hop queries.</div>
+        <div class="strat-best">mixed queries · default for complex types</div>
+      </div>
+      <div class="strat-row">
+        <div class="strat-name">cross-encoder<br/><code>ms-marco-MiniLM-L-6-v2</code></div>
+        <div class="strat-desc">Two-stage: retrieve top-20 candidates with hybrid, rerank with a cross-encoder that jointly encodes query and document. Highest latency (+600ms); used selectively for complex queries where precision is the priority.</div>
+        <div class="strat-best">precision-critical · complex multi-hop</div>
+      </div>
+      <div class="strat-row">
+        <div class="strat-name">sub-query decomposition<br/><code>LLM → N dense retrievals</code></div>
+        <div class="strat-desc">LLM generates 2–5 atomic sub-queries from a complex input. Independent dense retrieval runs per sub-query. Candidate sets are merged before fusion. Only strategy capable of surfacing answers distributed across documents with no overlapping terms.</div>
+        <div class="strat-best">multi-hop · cross-document synthesis</div>
+      </div>
+      <div class="strat-row">
+        <div class="strat-name">HyDE<br/><code>hypothetical doc embedding</code></div>
+        <div class="strat-desc">LLM generates a hypothetical answer. That answer is embedded and used as the query vector. Improves recall when query phrasing differs substantially from how the answer is written in the corpus.</div>
+        <div class="strat-best">query–answer domain mismatch</div>
+      </div>
+    </div>
 
-<h3>10.1 Blueprint</h3>
-<ul>
-  <li>Local Docker with Ollama</li>
-  <li>Hosted demo on Hugging Face Spaces</li>
-</ul>
+    <h3 id="fusion">3.3 Result Fusion</h3>
 
-<h3>10.2 Security</h3>
-<p>Zero network calls. All data local. Open code for audit.</p>
+    <p>Results from all active strategies are merged using Reciprocal Rank Fusion (RRF). The formula assigns each candidate a score of <code>Σ 1/(k + rank_i)</code> where k=60 and the sum is over all strategy result lists in which the candidate appears. Documents appearing in multiple strategy results are promoted; the scheme is robust to score scale differences between dense and BM25 outputs.</p>
 
-<h3>10.3 Governance and Compliance</h3>
-<p>Transparent experiment traces. No PII processing by default.</p>
+    <div class="diag">
+      <div class="diag-caption">
+        <span>Figure 3 — RRF fusion on a multi-hop query (vendor contract approval)</span>
+        <span style="color:var(--ink3)">k=60</span>
+      </div>
+      <div class="diag-body">
+        <div class="fusion-cols">
+          <div>
+            <div class="f-col-title">Dense results</div>
+            <div class="f-item"><span>Finance Policy §4.2</span><span class="sc">0.91</span></div>
+            <div class="f-item"><span>Vendor Onboarding SOP</span><span class="sc">0.78</span></div>
+            <div class="f-item"><span>Approval Matrix Q3</span><span class="sc">0.71</span></div>
+          </div>
+          <div class="f-arrow">+</div>
+          <div>
+            <div class="f-col-title">BM25 results</div>
+            <div class="f-item"><span>Legal Addendum §2.1</span><span class="sc">18.4</span></div>
+            <div class="f-item"><span>Finance Policy §4.2</span><span class="sc">14.1</span></div>
+            <div class="f-item"><span>Procurement SOP §7</span><span class="sc">11.9</span></div>
+          </div>
+          <div class="f-arrow">→ RRF →</div>
+          <div>
+            <div class="f-col-title">Fused output</div>
+            <div class="f-item top"><span>Finance Policy §4.2</span><span class="sc">0.97</span></div>
+            <div class="f-item top"><span>Legal Addendum §2.1</span><span class="sc">0.89</span></div>
+            <div class="f-item top"><span>Procurement SOP §7</span><span class="sc">0.84</span></div>
+            <div class="f-item top"><span>Vendor Onboarding SOP</span><span class="sc">0.76</span></div>
+          </div>
+        </div>
+        <div style="margin-top:1rem;font-family:var(--mono);font-size:0.62rem;color:var(--ink3)">Note: score scales differ between dense (cosine, [0,1]) and BM25 (unnormalised). RRF operates on rank position, not score magnitude — scale differences do not affect the fusion output.</div>
+      </div>
+    </div>
 
-<h3>10.4 SRE</h3>
-<p>Local execution with error recovery. Index rebuild on demand.</p>
+    <h3 id="stack">3.4 Stack and Component Decisions</h3>
 
-<h2>11. Impact & Outcomes</h2>
-<p>Expected outcomes:</p>
-<ul>
-  <li>20–40% average improvement in retrieval recall</li>
-  <li>80–90% reduction in manual RAG tuning time</li>
-  <li>Reproducible, metric-driven retrieval optimization</li>
-  <li>Foundation for production-grade enterprise RAG</li>
-  <li>Portfolio demonstration of MLOps applied to retrieval engineering</li>
-</ul>
+    <div class="tbl-wrap">
+      <table>
+        <thead>
+          <tr><th>Component</th><th>Choice</th><th>Alternative considered</th><th>Reason for choice</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Classifier</td><td>Structured LLM prompt · GPT-4o-mini</td><td>Fine-tuned BERT</td><td>No labelled dataset required; fast iteration; 200ms latency acceptable</td></tr>
+          <tr><td>Dense retrieval</td><td>text-embedding-3-small</td><td>nomic-embed-text</td><td>Higher benchmark scores on enterprise text domains; API consistency</td></tr>
+          <tr><td>Sparse retrieval</td><td>rank-bm25 · in-memory</td><td>Elasticsearch</td><td>Zero operational overhead; sufficient for corpora under ~500K documents</td></tr>
+          <tr><td>Reranker</td><td>ms-marco-MiniLM-L-6-v2</td><td>Cohere Rerank API</td><td>No external dependency; zero per-call cost; adequate precision on enterprise text</td></tr>
+          <tr><td>Fusion</td><td>Reciprocal Rank Fusion</td><td>Linear score combination</td><td>Score-scale independent; well-studied; robust across strategy count changes</td></tr>
+          <tr><td>Orchestration</td><td>FastAPI · asyncio</td><td>LangChain</td><td>Direct control over async execution timing; lower abstraction overhead</td></tr>
+          <tr><td>RAG framework</td><td>LlamaIndex</td><td>LangChain retrieval</td><td>Cleaner query engine interface; simpler index management for pluggable vector stores</td></tr>
+          <tr><td>Vector store</td><td>Pluggable · ChromaDB default</td><td>N/A (integration layer)</td><td>QueryForge wraps existing stores; migration not required</td></tr>
+          <tr><td>Experiment logging</td><td>SQLite · local</td><td>PostgreSQL</td><td>Zero dependency; dev-time tool does not require managed database infrastructure</td></tr>
+          <tr><td>Hosting (demo)</td><td>HuggingFace Spaces · Docker</td><td>Render.com free tier</td><td>Stays warm on free tier; GPU allocation available; avoids 30s cold start on demo</td></tr>
+        </tbody>
+      </table>
+    </div>
 
-<h2>The "We'll Get to This When We're Famous" Section</h2>
-<p>(A cheeky but honest roadmap of features we're deliberately not building in the MVP — because even the smartest optimizer can't fix scope creep.)</p>
-<ul>
-  <li>Advanced LLM rerankers</li>
-  <li>Chunking strategy optimization</li>
-  <li>Hybrid search weight tuning</li>
-  <li>Direct integration with LlamaIndex/LangChain pipelines</li>
-  <li>Cloud-hosted version with team collaboration</li>
-</ul>
+    <h3>System layers</h3>
+    <div class="layers">
+      <div class="layer-row">
+        <div class="layer-lbl">interface</div>
+        <div class="layer-content">
+          <span class="lchip hl">REST API · /v1/optimize</span>
+          <span class="lchip">Python SDK · pip install queryforge</span>
+          <span class="lchip">LlamaIndex adapter</span>
+          <span class="lchip">LangChain adapter</span>
+          <span class="lchip">Query playground · browser UI</span>
+          <span class="lchip">Config export · JSON</span>
+          <span class="lchip">Prometheus · /metrics</span>
+        </div>
+      </div>
+      <div class="layer-row">
+        <div class="layer-lbl">intelligence</div>
+        <div class="layer-content">
+          <span class="lchip hl">Query classifier</span>
+          <span class="lchip hl">Sub-query decomposer</span>
+          <span class="lchip">Dense retrieval</span>
+          <span class="lchip">BM25 sparse</span>
+          <span class="lchip">Hybrid α-weighted</span>
+          <span class="lchip">Cross-encoder reranker</span>
+          <span class="lchip">HyDE expansion</span>
+          <span class="lchip">RRF fusion engine</span>
+          <span class="lchip hl">Config recommender</span>
+        </div>
+      </div>
+      <div class="layer-row">
+        <div class="layer-lbl">orchestration</div>
+        <div class="layer-content">
+          <span class="lchip">FastAPI · async</span>
+          <span class="lchip">asyncio · parallel retrieval</span>
+          <span class="lchip">LlamaIndex query engine</span>
+          <span class="lchip">Experiment tracker</span>
+          <span class="lchip">SQLite · score log</span>
+          <span class="lchip">Docker · Compose</span>
+        </div>
+      </div>
+      <div class="layer-row">
+        <div class="layer-lbl">data</div>
+        <div class="layer-content">
+          <span class="lchip">Existing vector store (pluggable)</span>
+          <span class="lchip">ChromaDB · Pinecone · pgvector · Weaviate</span>
+          <span class="lchip">BM25 index · auto-built on corpus load</span>
+          <span class="lchip">ms-marco-MiniLM weights · local</span>
+          <span class="lchip hl">Query log · SQLite</span>
+          <span class="lchip hl">Config recommendation store</span>
+        </div>
+      </div>
+    </div>
 
-<h2>List of Diagrams & Images</h2>
-<div class="diagram-placeholder">
-  1. Multi-Query Generation Strategies (Diagram showing decomposition, HyDE, step-back, and rewrite variants)
+  </section>
+
+  <!-- 4. SIMULATOR -->
+  <section class="section" id="simulator">
+    <h2><span class="sec-n">§4</span> Simulator</h2>
+
+    <p>The simulator below demonstrates the pipeline execution for four query scenarios. Each run shows per-stage timing, strategy routing, and the configuration recommendation output. Stages 3–5 execute in parallel; skipped stages indicate that the classifier routed to a simpler path.</p>
+
+    <div class="sim">
+      <div class="sim-hdr">
+        <span class="sim-hdr-title">queryforge · pipeline simulator</span>
+        <span class="sim-status"><span class="sdot" id="sdot"></span><span id="slbl">idle</span></span>
+      </div>
+      <div class="sim-body">
+        <div class="sim-l">
+          <span class="sim-lbl">Scenario</span>
+          <div class="sc-list" id="scList">
+            <button class="sc-btn active" data-idx="0">single-hop · PTO policy lookup</button>
+            <button class="sc-btn" data-idx="1">multi-hop · vendor contract approval</button>
+            <button class="sc-btn" data-idx="2">temporal · parental leave history</button>
+            <button class="sc-btn" data-idx="3">comparative · enterprise vs SMB terms</button>
+          </div>
+          <div class="sc-desc" id="scDesc"><strong>Single-hop</strong> — Simple factual lookup. Classifier routes to dense retrieval only. Decomposition skipped. Naive RAG also handles this correctly; QueryForge confirms and logs the efficient config.</div>
+          <button class="run-btn" id="runBtn">run simulation</button>
+        </div>
+        <div class="sim-r">
+          <span class="sim-lbl">Pipeline execution</span>
+          <div class="pip-steps" id="pipSteps">
+            <div class="srow" id="sr0"><div class="sic" id="si0">·</div><div class="sname">query received<span>tokenise · validate input</span></div><div class="stime" id="st0">—</div><div class="sstatus w" id="ss0">idle</div></div>
+            <div class="srow" id="sr1"><div class="sic" id="si1">·</div><div class="sname">classifier<span>complexity type detection</span></div><div class="stime" id="st1">—</div><div class="sstatus w" id="ss1">idle</div></div>
+            <div class="srow" id="sr2"><div class="sic" id="si2">·</div><div class="sname">decomposer<span>atomic sub-query generation</span></div><div class="stime" id="st2">—</div><div class="sstatus w" id="ss2">idle</div></div>
+            <div class="srow" id="sr3"><div class="sic" id="si3">·</div><div class="sname">dense retrieval<span>cosine similarity · top-5</span></div><div class="stime" id="st3">—</div><div class="sstatus w" id="ss3">idle</div></div>
+            <div class="srow" id="sr4"><div class="sic" id="si4">·</div><div class="sname">BM25 sparse retrieval<span>term frequency scoring</span></div><div class="stime" id="st4">—</div><div class="sstatus w" id="ss4">idle</div></div>
+            <div class="srow" id="sr5"><div class="sic" id="si5">·</div><div class="sname">hybrid retrieval<span>α-weighted dense + sparse</span></div><div class="stime" id="st5">—</div><div class="sstatus w" id="ss5">idle</div></div>
+            <div class="srow" id="sr6"><div class="sic" id="si6">·</div><div class="sname">RRF fusion<span>reciprocal rank merge</span></div><div class="stime" id="st6">—</div><div class="sstatus w" id="ss6">idle</div></div>
+            <div class="srow" id="sr7"><div class="sic" id="si7">·</div><div class="sname">config recommender<span>score strategies · log</span></div><div class="stime" id="st7">—</div><div class="sstatus w" id="ss7">idle</div></div>
+            <div class="srow" id="sr8"><div class="sic" id="si8">·</div><div class="sname">result delivered<span>ranked docs + config recommendation</span></div><div class="stime" id="st8">—</div><div class="sstatus w" id="ss8">idle</div></div>
+          </div>
+          <div class="result-box" id="rBox">
+            <span style="color:var(--ink3)">// output appears here after run</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <h3>Execution steps</h3>
+    <div class="how-list">
+      <div class="how-row"><div class="how-n">01</div><div class="how-desc">Query intercepted at API layer before the existing vector store call.</div><div class="how-t">REST · SDK</div></div>
+      <div class="how-row"><div class="how-n">02</div><div class="how-desc">Classifier issues a structured LLM call to determine complexity type. Five types: single-hop, multi-hop, temporal, comparative, entity-scoped.</div><div class="how-t">~200ms</div></div>
+      <div class="how-row"><div class="how-n">03</div><div class="how-desc">Decomposer generates 2–5 atomic sub-queries for complex types. Skipped entirely for single-hop classification.</div><div class="how-t">~400ms · skippable</div></div>
+      <div class="how-row"><div class="how-n">04–06</div><div class="how-desc">Dense, BM25, and hybrid strategies execute concurrently via <code>asyncio.gather()</code>. Total wall time bounded by the slowest strategy.</div><div class="how-t">~800ms parallel</div></div>
+      <div class="how-row"><div class="how-n">07</div><div class="how-desc">RRF merges all candidate sets. Score scale differences between dense and BM25 outputs do not affect ranking; RRF operates on ordinal position.</div><div class="how-t">~50ms</div></div>
+      <div class="how-row"><div class="how-n">08–09</div><div class="how-desc">Strategy scores logged to SQLite. Configuration recommendation generated based on winning strategy and query type. Returned alongside ranked result set.</div><div class="how-t">~100ms</div></div>
+    </div>
+
+  </section>
+
+</main>
 </div>
 
-<div class="diagram-placeholder">
-  2. Parallel Retrieval & Fusion Pipeline (Flow diagram: query variants → parallel search → fusion/reranking → final results)
-</div>
+<footer>
+  <span>QueryForge · Architecture Portfolio · 2026 · <a href="https://github.com/">github.com/raosiddharthp/queryforge</a></span>
+  <span>Page 01 · Overview · © 2026 Siddharth Rao</span>
+</footer>
 
-<div class="diagram-placeholder">
-  3. Evaluation Metrics Dashboard Concept (Mock UI screenshot with recall@k, MRR, latency charts)
-</div>
+<script>
+const SC = [
+  {
+    label:"single-hop · PTO policy lookup",
+    desc:"<strong>Single-hop</strong> — Simple factual lookup against a single HR document. Classifier routes to dense retrieval only. Decomposition skipped. Naive RAG also handles this correctly; QueryForge confirms the efficient config and logs it.",
+    steps:[
+      {t:"11ms",  s:"p"},
+      {t:"196ms", s:"p", n:"// type: single-hop  confidence: 0.94"},
+      {t:"—",     s:"k", n:"// skipped — single-hop, decomposition not required"},
+      {t:"308ms", s:"p", n:"// HR Policy §3.1  score: 0.91\n// HR Policy §3.2  score: 0.84"},
+      {t:"—",     s:"k", n:"// skipped — single-hop"},
+      {t:"—",     s:"k", n:"// skipped — single-hop"},
+      {t:"39ms",  s:"p", n:"// 2 candidates  RRF complete"},
+      {t:"84ms",  s:"p", n:"// winner: dense-only  logged to config store"},
+      {t:"—",     s:"p"}
+    ],
+    out:`<span class="rtag a">type: single-hop</span><span class="rtag g">strategy: dense-only</span><span class="rtag a">total: 638ms</span>
 
-<div class="diagram-placeholder">
-  4. Before/After Retrieval Comparison (Side-by-side ranked results: baseline vs QueryForge)
-</div>
+// top result
+HR Policy §3.1 · PTO Entitlements · score: 0.91
 
-<div class="diagram-placeholder">
-  5. Optimization Experiment Grid (Table/matrix of tested configurations with performance scores)
-</div>
+Full-time employees accrue 15 days PTO annually in years 1–3,
+rising to 20 days from year 4. Unused PTO rolls over up to 5 days
+per calendar year.
 
-<div class="diagram-placeholder">
-  6. MLOps Lifecycle for RAG Optimization (Cycle diagram: data → experiment → evaluate → recommend → deploy)
-</div>
+// config recommendation
+{
+  "query_type": "single-hop",
+  "recommended_strategy": "dense",
+  "top_k": 3,
+  "similarity_threshold": 0.75,
+  "reranking": false
+}`
+  },
+  {
+    label:"multi-hop · vendor contract approval",
+    desc:"<strong>Multi-hop · entity-scoped</strong> — The answer spans Finance Policy, Legal Addendum, and Procurement SOP with no overlapping terminology. Naive RAG returns the general procurement page. QueryForge decomposes into three sub-queries and retrieves from each document independently.",
+    steps:[
+      {t:"13ms",  s:"p"},
+      {t:"221ms", s:"p", n:"// type: multi-hop  entity-scoped  confidence: 0.91"},
+      {t:"414ms", s:"p", n:'// sub-q 1: "vendor contract threshold $50K"\n// sub-q 2: "non-standard payment term definition"\n// sub-q 3: "vendor approval workflow sign-off chain"'},
+      {t:"698ms", s:"p", n:"// Finance Policy §4.2  0.88\n// Legal Addendum §2.1  0.79\n// Procurement SOP §7   0.83"},
+      {t:"681ms", s:"p", n:"// Finance Policy §4.2  BM25: 18.4\n// Procurement SOP §7   BM25: 14.2"},
+      {t:"690ms", s:"p", n:"// α=0.4 (entity-heavy)  5 candidates"},
+      {t:"49ms",  s:"p", n:"// 8 candidates merged  top-5 promoted"},
+      {t:"91ms",  s:"p", n:"// winner: decompose + hybrid + RRF  logged"},
+      {t:"—",     s:"p"}
+    ],
+    out:`<span class="rtag w">naive RAG: 1 of 3 docs retrieved</span><span class="rtag g">queryforge: 3 of 3 retrieved</span>
 
-<div class="links">
-  <h2>Supporting Documentation</h2>
-  <ul>
-    <li><a href="SAMPLE_OPTIMIZATIONS.html">Sample Optimizations & Results</a></li>
-    <li><a href="EVALUATION_METRICS.html">Detailed Evaluation Metrics & Methodology</a></li>
-    <li><a href="TECH_STACK.html">Technical Stack & Local Setup</a></li>
-  </ul>
-</div>
+// fused results
+1. Finance Policy §4.2    RRF: 0.97  — contracts >$50K require CFO approval
+2. Legal Addendum §2.1    RRF: 0.91  — non-standard: >Net-60 or milestone-gated
+3. Procurement SOP §7     RRF: 0.86  — workflow: procurement → legal → CFO (5 days)
+4. Vendor Onboarding SOP  RRF: 0.76
 
+// config recommendation
+{
+  "query_type": "multi-hop-entity",
+  "recommended_strategy": "decompose+hybrid+rrf",
+  "top_k_per_subquery": 5,
+  "alpha": 0.4,
+  "reranking": true,
+  "reranker": "ms-marco-MiniLM-L-6-v2"
+}`
+  },
+  {
+    label:"temporal · parental leave history",
+    desc:"<strong>Temporal · multi-doc</strong> — Requires both current and archived versions of a policy, plus contractor classification rules. Dense embedding does not reliably capture temporal framing. BM25 date-weighted retrieval on document metadata is the decisive strategy.",
+    steps:[
+      {t:"10ms",  s:"p"},
+      {t:"208ms", s:"p", n:"// type: temporal  multi-hop  confidence: 0.88"},
+      {t:"497ms", s:"p", n:'// sub-q 1: "parental leave policy current 2025"\n// sub-q 2: "parental leave policy pre-Series B 2022"\n// sub-q 3: "contractor parental leave eligibility"'},
+      {t:"806ms", s:"p", n:"// HR Policy v3.2 (2025)   0.87\n// Policy Archive v1.1 (2022)  0.72\n// Contractor Rules §4   0.69"},
+      {t:"791ms", s:"p", n:"// Policy Archive 2022 matched via date metadata  BM25: 14.8\n// date-weighted field boost applied"},
+      {t:"799ms", s:"p", n:"// α=0.5 (temporal: balanced weight)"},
+      {t:"55ms",  s:"p", n:"// archive promoted via BM25 date match  RRF complete"},
+      {t:"99ms",  s:"p", n:"// winner: decompose + hybrid + date-weighted BM25  logged"},
+      {t:"—",     s:"p"}
+    ],
+    out:`<span class="rtag g">date-weighted BM25 decisive</span><span class="rtag a">total: 2.46s</span>
+
+// fused results
+1. HR Policy v3.2 (current)      RRF: 0.95  — 18 weeks fully paid, all employees
+2. HR Policy v1.1 (pre-Series B) RRF: 0.88  — 12 weeks, employees only
+3. Contractor Classification §4  RRF: 0.83  — contractors: not eligible
+
+// config recommendation
+{
+  "query_type": "temporal",
+  "recommended_strategy": "decompose+hybrid+bm25-date-weighted",
+  "alpha": 0.5,
+  "bm25_field_boost": { "publication_date": 2.0 },
+  "chunk_versioning": true,
+  "note": "index publication_date as BM25 field for temporal queries"
+}`
+  },
+  {
+    label:"comparative · enterprise vs SMB terms",
+    desc:"<strong>Comparative · parallel entity</strong> — A single embedding biases retrieval toward one of two entities. QueryForge decomposes into entity-parallel sub-queries, retrieves each independently, and fuses before generation — surfacing a complete symmetric comparison.",
+    steps:[
+      {t:"12ms",  s:"p"},
+      {t:"190ms", s:"p", n:"// type: comparative  entity-parallel  confidence: 0.92"},
+      {t:"382ms", s:"p", n:'// sub-q 1: "enterprise contract renewal terms notice period"\n// sub-q 2: "SMB contract renewal terms notice period"'},
+      {t:"641ms", s:"p", n:"// Legal §8.1 Enterprise Renewal  0.88\n// Legal §8.3 SMB Renewal          0.85"},
+      {t:"627ms", s:"p", n:"// BM25: both sections matched on exact entity term"},
+      {t:"634ms", s:"p", n:"// α=0.45 (comparative: slightly term-heavy)"},
+      {t:"44ms",  s:"p", n:"// both entity sections rank top-2  RRF complete"},
+      {t:"88ms",  s:"p", n:"// winner: decompose + dense per entity  logged"},
+      {t:"—",     s:"p"}
+    ],
+    out:`<span class="rtag g">both entities retrieved</span><span class="rtag a">total: 2.02s</span>
+
+// fused results
+1. Legal §8.1 Enterprise Renewal  RRF: 0.96  — 90-day notice, annual auto-renew, custom terms
+2. Legal §8.3 SMB Renewal         RRF: 0.93  — 30-day notice, monthly auto-renew, standard terms
+
+// derived comparison
+notice period:   enterprise 90 days  /  SMB 30 days  (3×)
+renewal cycle:   enterprise annual   /  SMB monthly
+custom terms:    enterprise yes       /  SMB no
+
+// config recommendation
+{
+  "query_type": "comparative",
+  "recommended_strategy": "decompose-per-entity+dense+rrf",
+  "top_k_per_entity": 3,
+  "disable_threshold_filtering": true,
+  "note": "threshold filtering can suppress entity sections; disable for comparative pairs"
+}`
+  }
+];
+
+let cur=0, running=false;
+const scBtns=document.querySelectorAll('.sc-btn');
+const runBtn=document.getElementById('runBtn');
+const scDesc=document.getElementById('scDesc');
+const sdot=document.getElementById('sdot');
+const slbl=document.getElementById('slbl');
+const rBox=document.getElementById('rBox');
+const icons=['·','·','·','·','·','·','·','·','·'];
+
+scBtns.forEach(b=>{
+  b.addEventListener('click',()=>{
+    if(running)return;
+    scBtns.forEach(x=>x.classList.remove('active'));
+    b.classList.add('active');
+    cur=parseInt(b.dataset.idx);
+    scDesc.innerHTML=SC[cur].desc;
+    reset();
+  });
+});
+
+function reset(){
+  for(let i=0;i<9;i++){
+    const ic=document.getElementById('si'+i);
+    ic.className='sic';
+    ic.textContent='·';
+    document.getElementById('st'+i).textContent='—';
+    const ss=document.getElementById('ss'+i);
+    ss.className='sstatus w';
+    ss.textContent='idle';
+    document.getElementById('sr'+i).className='srow';
+  }
+  rBox.className='result-box';
+  rBox.innerHTML='<span style="color:var(--ink3)">// output appears here after run</span>';
+}
+
+async function run(){
+  if(running)return;
+  running=true;
+  runBtn.disabled=true;
+  sdot.classList.add('on');
+  slbl.textContent='running';
+  reset();
+
+  const sc=SC[cur];
+  const delays=[120,280,460,650,650,650,180,180,100];
+
+  for(let i=0;i<9;i++){
+    const ic=document.getElementById('si'+i);
+    const te=document.getElementById('st'+i);
+    const se=document.getElementById('ss'+i);
+    const row=document.getElementById('sr'+i);
+    ic.className='sic run';
+    ic.textContent='→';
+    se.className='sstatus r';
+    se.textContent='running';
+    row.className='srow active-s';
+    row.scrollIntoView({behavior:'smooth',block:'nearest'});
+
+    const step=sc.steps[i];
+    const isP=(i>=3&&i<=5);
+    const wait=step.s==='k'?60:(isP?Math.floor(delays[i]*0.5):delays[i]);
+    await new Promise(r=>setTimeout(r,wait));
+
+    if(step.s==='k'){
+      ic.className='sic skip-ic';
+      ic.textContent='—';
+      se.className='sstatus sk';
+      se.textContent='skipped';
+      te.textContent='—';
+    } else {
+      ic.className='sic done';
+      ic.textContent='✓';
+      se.className='sstatus p';
+      se.textContent='done';
+      te.textContent=step.t;
+    }
+    row.className='srow done-s';
+  }
+
+  rBox.className='result-box has-result';
+  rBox.innerHTML='<pre style="white-space:pre-wrap;font-family:var(--mono);font-size:0.68rem;line-height:1.7">'+sc.out+'</pre>';
+
+  sdot.classList.remove('on');
+  slbl.textContent='complete';
+  running=false;
+  runBtn.disabled=false;
+}
+
+runBtn.addEventListener('click', run);
+scDesc.innerHTML = SC[0].desc;
+</script>
 </body>
 </html>
