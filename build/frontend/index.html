@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>QueryForge — Adaptive RAG Retrieval Optimizer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+:root {
+  --bg: #fafaf8; --bg2: #f2f0eb; --bg3: #e8e5de;
+  --text: #1a1917; --text2: #5a5852; --text3: #8a8880;
+  --border: #d8d5ce; --border2: #c8c5be;
+  --amber: #b07010; --amber-bg: #fdf4e3; --amber-border: #e8c870;
+  --teal: #0a6b52; --teal-bg: #e8f5f0; --teal-border: #80c8b0;
+  --purple: #4a40b0; --purple-bg: #f0effe; --purple-border: #b0a8e8;
+  --coral: #b03820; --coral-bg: #fdf0ec;
+  --serif: 'DM Serif Display', Georgia, serif;
+  --mono: 'IBM Plex Mono', monospace;
+  --sans: 'Inter', system-ui, sans-serif;
+  --r: 6px; --r-lg: 10px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: var(--sans); background: var(--bg); color: var(--text); font-size: 15px; line-height: 1.6; }
+.wrap { max-width: 760px; margin: 0 auto; padding: 3rem 1.5rem 5rem; }
+header { margin-bottom: 2rem; }
+.eyebrow { font-family: var(--mono); font-size: 10.5px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 0.5rem; }
+h1 { font-family: var(--serif); font-size: 32px; font-weight: 400; margin-bottom: 0.5rem; }
+h1 em { color: var(--teal); font-style: italic; }
+.sub { color: var(--text2); font-size: 14px; }
+.sub a { color: var(--text2); }
+
+.query-box { border: 1px solid var(--border); border-radius: var(--r-lg); background: white; padding: 1.25rem; margin: 1.5rem 0; }
+.query-box label { display: block; font-family: var(--mono); font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text3); margin-bottom: 6px; }
+.query-box input[type=text] { width: 100%; padding: 10px 12px; border: 1px solid var(--border2); border-radius: var(--r); font-family: var(--sans); font-size: 14px; margin-bottom: 12px; background: var(--bg); color: var(--text); }
+.row { display: flex; gap: 10px; align-items: flex-end; }
+.row > div { flex: 1; }
+button { padding: 10px 18px; background: var(--text); color: var(--bg); border: none; border-radius: var(--r); font-family: var(--mono); font-size: 12px; letter-spacing: 0.04em; cursor: pointer; }
+button:hover { opacity: 0.85; }
+button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.status { font-family: var(--mono); font-size: 11px; color: var(--text3); margin: 10px 0; }
+.status.error { color: var(--coral); }
+
+.explain { border: 1px solid var(--purple-border); background: var(--purple-bg); border-radius: var(--r-lg); padding: 1rem 1.25rem; margin: 1.25rem 0; }
+.explain-label { font-family: var(--mono); font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--purple); margin-bottom: 6px; }
+.explain-type { font-family: var(--serif); font-size: 18px; margin-bottom: 4px; }
+.explain-body { font-size: 13px; color: var(--text2); line-height: 1.6; }
+.sig { display: inline-block; font-family: var(--mono); font-size: 10px; background: white; border: 1px solid var(--border2); padding: 2px 8px; border-radius: 99px; margin: 2px 4px 2px 0; }
+
+.subq-list { margin: 1rem 0; padding: 1rem 1.25rem; background: var(--bg2); border-radius: var(--r-lg); font-size: 13px; }
+.subq-list div { padding: 3px 0; color: var(--text2); }
+
+.result-card { border: 1px solid var(--border); border-radius: var(--r); padding: 0.875rem 1.1rem; margin-bottom: 8px; background: white; }
+.result-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+.result-id { font-family: var(--mono); font-size: 11px; color: var(--text3); }
+.result-score { font-family: var(--mono); font-size: 11px; color: var(--teal); }
+.result-text { font-size: 13px; color: var(--text2); line-height: 1.5; }
+.result-strategies { margin-top: 6px; }
+.strategy-tag { font-family: var(--mono); font-size: 9.5px; padding: 1px 7px; border-radius: 99px; background: var(--teal-bg); color: var(--teal); border: 1px solid var(--teal-border); margin-right: 4px; }
+
+.config-block { margin-top: 1.5rem; }
+.config-block-label { font-family: var(--mono); font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text3); margin-bottom: 6px; }
+pre { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--r-lg); padding: 1rem; font-family: var(--mono); font-size: 11.5px; color: var(--text); overflow-x: auto; }
+
+.footer-note { font-family: var(--mono); font-size: 10.5px; color: var(--text3); margin-top: 3rem; padding-top: 1.5rem; border-top: 1px solid var(--border); }
+.footer-note a { color: var(--text3); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="eyebrow">QueryForge · live demo</div>
+    <h1>Adaptive <em>retrieval</em> optimization</h1>
+    <div class="sub">Every query is classified, routed, and explained. See the <a href="../../index.html">full architecture design doc</a>.</div>
+  </header>
+
+  <div class="query-box">
+    <label for="query-input">Query</label>
+    <input type="text" id="query-input" placeholder="What approval is required for vendor contracts over $50K with non-standard payment terms?" value="What is the payment term for vendor #V-2847?"/>
+    <div class="row">
+      <div>
+        <label for="corpus-input">Corpus ID</label>
+        <input type="text" id="corpus-input" value="acme-hr-corpus"/>
+      </div>
+      <button id="run-btn" onclick="runQuery()">optimize →</button>
+    </div>
+  </div>
+
+  <div class="status" id="status"></div>
+  <div id="output"></div>
+
+  <div class="footer-note">
+    QueryForge v1.1.0 · calls <code id="endpoint-note">POST /v1/optimize</code> on a Cloud Run backend ·
+    <a href="../../docs/adr/">architecture decisions</a>
+  </div>
+</div>
+
+<script>
+// Set this to your deployed Cloud Run URL after `gcloud run deploy` — see
+// infra/main.tf for provisioning and README.md "Running Locally" for the
+// local-dev default (http://localhost:8080).
+const BACKEND_URL = window.QUERYFORGE_BACKEND_URL || "http://localhost:8080";
+document.getElementById("endpoint-note").textContent = `POST ${BACKEND_URL}/v1/optimize`;
+
+async function runQuery() {
+  const query = document.getElementById("query-input").value.trim();
+  const corpusId = document.getElementById("corpus-input").value.trim();
+  const status = document.getElementById("status");
+  const output = document.getElementById("output");
+  const btn = document.getElementById("run-btn");
+
+  if (!query || !corpusId) {
+    status.textContent = "Enter both a query and a corpus ID.";
+    status.className = "status error";
+    return;
+  }
+
+  btn.disabled = true;
+  status.textContent = "running pipeline…";
+  status.className = "status";
+  output.innerHTML = "";
+
+  const t0 = performance.now();
+  try {
+    const res = await fetch(`${BACKEND_URL}/v1/optimize`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ query, corpus_id: corpusId, top_k: 5 }),
+    });
+    if (!res.ok) throw new Error(`Backend returned ${res.status}`);
+    const data = await res.json();
+    render(data);
+    status.textContent = `done in ${Math.round(performance.now() - t0)}ms (client-measured)`;
+  } catch (err) {
+    status.textContent = `Error: ${err.message}. Is the backend running? See README.md "Running Locally".`;
+    status.className = "status error";
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+function render(data) {
+  const output = document.getElementById("output");
+  const ce = data.classifier_explanation;
+
+  let html = `<div class="explain">
+    <div class="explain-label">classifier_explanation</div>
+    <div class="explain-type">${ce.type} <span style="font-family: var(--mono); font-size: 11px; color: var(--text3); font-weight: normal;">· confidence ${ce.confidence.toFixed(2)}${ce.fallback_applied ? " · fallback applied" : ""}</span></div>
+    <div class="explain-body">${ce.reasoning}</div>
+    <div style="margin-top:8px;">${ce.signals.map(s => `<span class="sig">${s}</span>`).join("")}</div>
+  </div>`;
+
+  if (data.sub_queries && data.sub_queries.length) {
+    html += `<div class="subq-list"><strong style="font-size:12px;">Sub-queries:</strong>` +
+      data.sub_queries.map(q => `<div>· ${q}</div>`).join("") + `</div>`;
+  }
+
+  if (data.hyde_triggered) {
+    html += `<div class="status" style="color: var(--amber);">HyDE fallback triggered — dense similarity was below threshold on the first pass.</div>`;
+  }
+
+  html += data.results.map(r => `
+    <div class="result-card">
+      <div class="result-head">
+        <span class="result-id">${r.doc_id}</span>
+        <span class="result-score">rrf ${r.rrf_score.toFixed(4)}</span>
+      </div>
+      <div class="result-text">${r.text.slice(0, 220)}${r.text.length > 220 ? "…" : ""}</div>
+      <div class="result-strategies">${r.source_strategies.map(s => `<span class="strategy-tag">${s}</span>`).join("")}</div>
+    </div>`).join("");
+
+  html += `<div class="config-block">
+    <div class="config-block-label">config_recommendation</div>
+    <pre>${JSON.stringify(data.config_recommendation, null, 2)}</pre>
+  </div>`;
+
+  output.innerHTML = html;
+}
+</script>
+</body>
+</html>

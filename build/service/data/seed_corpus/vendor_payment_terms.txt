@@ -1,0 +1,18 @@
+§1 Vendor Onboarding Checklist
+§1.1 New vendors must complete a W-9 (or W-8BEN for international vendors), banking details
+form, and a signed master services agreement before any purchase order is issued.
+
+§2 Standard Payment Terms Glossary
+Net-30: payment due 30 days after invoice date. Net-60: payment due 60 days after invoice date.
+Net-90: payment due 90 days after invoice date, classified as non-standard per procurement policy.
+Upfront deposit: a percentage of contract value paid before work begins.
+
+§3 Vendor #V-2847
+§3.1 Vendor #V-2847 (Meridian Logistics Inc.) is contracted for warehouse fulfilment services.
+Current contract value: $68,000 annually, billed quarterly.
+§3.2 Payment term for vendor #V-2847: net-45, non-standard, approved by VP Finance on 2026-01-14
+due to Meridian's cash-flow requirements as a mid-size logistics provider.
+
+§4 Payment Term Exceptions Log
+Vendor #V-2847: net-45 (VP Finance approved, 2026-01-14). Vendor #V-3021: net-60 (Director
+approved, 2025-11-02). Vendor #V-1188: 20% upfront deposit (VP Finance approved, 2025-08-19).

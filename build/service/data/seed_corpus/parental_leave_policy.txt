@@ -1,0 +1,17 @@
+§1 Parental Leave Policy — Current Version (v3, effective 2026-02-01)
+All full-time employees are eligible for 16 weeks of paid parental leave following the birth,
+adoption, or foster placement of a child, regardless of gender or parenting role.
+
+§2 Version History
+§2.1 v1 (effective at founding, pre-Series A): 8 weeks paid leave, primary caregivers only.
+§2.2 v2 (effective 2024-06-01, post-Series B): expanded to 12 weeks paid leave for all parents,
+regardless of primary/secondary caregiver designation.
+§2.3 v3 (effective 2026-02-01, current): expanded to 16 weeks paid leave, added foster placement
+as a qualifying event, removed the prior 12-month tenure requirement.
+
+§3 Eligibility
+All full-time employees are eligible from their start date under v3. The prior 12-month tenure
+requirement from v2 was removed following employee feedback collected in the 2025 benefits survey.
+
+§4 Related Policies
+See the Flexible Return-to-Work Policy for phased return options following parental leave.

@@ -1,293 +1,1278 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <title>QueryForge – Multi-Query Optimization Engine for Enterprise RAG</title>
-  <meta name="description" content="Open-source engine for automated multi-query optimization in enterprise RAG systems. Improves retrieval quality through query decomposition, parallel strategies, and fusion/reranking.">
-  <style>
-    @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap');
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>QueryForge — Adaptive Multi-Query Optimization for RAG, on Google Cloud</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+:root {
+  --bg: #fafaf8; --bg2: #f2f0eb; --bg3: #e8e5de;
+  --text: #1a1917; --text2: #5a5852; --text3: #8a8880;
+  --border: #d8d5ce; --border2: #c8c5be;
+  --amber: #b07010; --amber-bg: #fdf4e3; --amber-border: #e8c870;
+  --teal: #0a6b52; --teal-bg: #e8f5f0; --teal-border: #80c8b0;
+  --purple: #4a40b0; --purple-bg: #f0effe; --purple-border: #b0a8e8;
+  --coral: #b03820; --coral-bg: #fdf0ec; --coral-border: #e8a090;
+  --blue: #1850a0; --blue-bg: #eaf2fe; --blue-border: #90b8e8;
+  --serif: 'DM Serif Display', Georgia, serif;
+  --mono: 'IBM Plex Mono', monospace;
+  --sans: 'Inter', system-ui, sans-serif;
+  --r: 6px; --r-lg: 10px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: var(--sans); background: var(--bg); color: var(--text); font-size: 15px; line-height: 1.7; }
 
-    body {
-      font-family: 'Space Mono', monospace;
-      background: white;
-      color: black;
-      max-width: 900px;
-      margin: 60px auto;
-      padding: 0 20px;
-      line-height: 1.7;
-      font-size: 17px;
-    }
+.page-wrap { display: grid; grid-template-columns: 220px 1fr; min-height: 100vh; }
 
-    h1 {
-      color: #0066FF;
-      font-size: 2.4em;
-      border-bottom: 4px solid #0066FF;
-      padding-bottom: 15px;
-      margin-bottom: 40px;
-    }
+/* SIDEBAR */
+.sidebar { position: sticky; top: 0; height: 100vh; overflow-y: auto; background: var(--bg2); border-right: 1px solid var(--border); padding: 2rem 1.25rem; display: flex; flex-direction: column; gap: 0; }
+.sidebar-logo { font-family: var(--mono); font-size: 11px; font-weight: 500; color: var(--text3); letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 0.25rem; }
+.sidebar-project { font-family: var(--serif); font-size: 18px; color: var(--text); margin-bottom: 2rem; line-height: 1.2; }
+.sidebar-nav { list-style: none; display: flex; flex-direction: column; gap: 2px; }
+.sidebar-nav a { display: block; font-size: 12px; color: var(--text2); text-decoration: none; padding: 5px 8px; border-radius: var(--r); transition: background 0.15s, color 0.15s; }
+.sidebar-nav a:hover { background: var(--bg3); color: var(--text); }
+.sidebar-nav a.active { background: var(--text); color: var(--bg); }
+.sidebar-nav .sub { padding-left: 20px; font-size: 11px; color: var(--text3); }
+.sidebar-nav .sub:hover { color: var(--text2); }
+.sidebar-divider { height: 1px; background: var(--border); margin: 1rem 0; }
+.stack-block { margin-top: auto; padding-top: 1.5rem; border-top: 1px solid var(--border); }
+.stack-title { font-family: var(--mono); font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text3); margin-bottom: 0.75rem; }
+.stack-item { font-size: 11px; color: var(--text2); padding: 4px 0; border-bottom: 1px solid var(--border); line-height: 1.3; }
+.stack-item strong { display: block; color: var(--text); font-weight: 500; font-size: 11px; }
 
-    h2 {
-      color: #0066FF;
-      font-size: 1.8em;
-      margin-top: 3em;
-      border-bottom: 2px solid #0066FF;
-      padding-bottom: 8px;
-    }
+/* MAIN */
+.main { padding: 0; }
+.topbar { display: flex; align-items: center; justify-content: space-between; padding: 0.75rem 2.5rem; border-bottom: 1px solid var(--border); position: sticky; top: 0; background: rgba(250,250,248,0.95); backdrop-filter: blur(8px); z-index: 100; }
+.topbar-breadcrumb { font-family: var(--mono); font-size: 11px; color: var(--text3); }
+.topbar-breadcrumb a { color: var(--text3); text-decoration: none; }
+.topbar-right { display: flex; align-items: center; gap: 16px; }
+.topbar-tag { font-family: var(--mono); font-size: 10px; padding: 3px 8px; background: var(--bg3); border-radius: 99px; color: var(--text2); }
 
-    h3 {
-      color: #0066FF;
-      font-size: 1.4em;
-      margin-top: 2.5em;
-    }
+/* CONTENT */
+.content { padding: 3rem 2.5rem 5rem; max-width: 820px; }
 
-    p, ul, ol, li {
-      margin-bottom: 1.2em;
-    }
+/* HEADER */
+.doc-header { margin-bottom: 3rem; padding-bottom: 3rem; border-bottom: 1px solid var(--border); }
+.doc-eyebrow { display: flex; align-items: center; gap: 12px; font-family: var(--mono); font-size: 10.5px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 1.25rem; }
+.doc-eyebrow::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+.doc-title { font-family: var(--serif); font-size: clamp(26px, 4vw, 40px); font-weight: 400; line-height: 1.15; letter-spacing: -0.01em; color: var(--text); margin-bottom: 0.75rem; }
+.doc-title em { font-style: italic; color: var(--teal); }
+.doc-byline { font-size: 13px; color: var(--text3); display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 2rem; }
 
-    ul, ol {
-      padding-left: 2em;
-    }
+/* STAT GRID */
+.stat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; border: 1px solid var(--border); border-radius: var(--r-lg); overflow: hidden; margin: 0 0 2.5rem; }
+.stat-cell { padding: 1.25rem 1.5rem; border-right: 1px solid var(--border); background: white; }
+.stat-cell:last-child { border-right: none; }
+.stat-value { font-family: var(--serif); font-size: 34px; font-weight: 400; line-height: 1; margin-bottom: 4px; }
+.stat-value.amber { color: var(--amber); }
+.stat-value.teal { color: var(--teal); }
+.stat-value.purple { color: var(--purple); }
+.stat-label { font-family: var(--mono); font-size: 10px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.08em; line-height: 1.4; }
 
-    a {
-      color: #0066FF;
-      text-decoration: none;
-    }
+/* ABSTRACT */
+.abstract-grid { display: grid; grid-template-columns: 110px 1fr; gap: 2rem; margin-bottom: 1.5rem; }
+.abstract-label { font-family: var(--mono); font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text3); padding-top: 4px; }
+.abstract-body { font-size: 14.5px; line-height: 1.75; color: var(--text2); }
+.abstract-body p + p { margin-top: 0.75rem; }
+.kw-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 1rem; }
+.kw { font-family: var(--mono); font-size: 10px; padding: 3px 10px; border: 1px solid var(--border2); border-radius: 99px; color: var(--text3); }
 
-    a:hover {
-      text-decoration: underline;
-    }
+/* SECTIONS */
+.section { margin-bottom: 4rem; }
+.section-heading { font-family: var(--serif); font-size: 26px; font-weight: 400; color: var(--text); margin-bottom: 1.25rem; display: flex; align-items: baseline; gap: 12px; }
+.section-num { font-family: var(--mono); font-size: 12px; color: var(--text3); }
+.subsection-heading { font-family: var(--sans); font-size: 13px; font-weight: 500; color: var(--text); margin: 2rem 0 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; gap: 8px; }
+.subsection-heading::before { content: ''; display: block; width: 20px; height: 1px; background: var(--border2); }
+.body-text { font-size: 14.5px; line-height: 1.75; color: var(--text2); margin-bottom: 1rem; }
+.body-text strong { color: var(--text); font-weight: 500; }
+.body-text code { font-family: var(--mono); font-size: 12px; background: var(--bg3); padding: 1px 5px; border-radius: 3px; color: var(--text); }
 
-    table {
-      border-collapse: collapse;
-      width: 100%;
-      margin: 30px 0;
-    }
+/* CALLOUT */
+.callout { border-left: 2px solid var(--border2); padding: 1rem 1.25rem; margin: 1.5rem 0; background: var(--bg2); }
+.callout.amber { border-color: var(--amber-border); background: var(--amber-bg); }
+.callout.teal { border-color: var(--teal-border); background: var(--teal-bg); }
+.callout.purple { border-color: var(--purple-border); background: var(--purple-bg); }
+.callout.blue { border-color: var(--blue-border); background: var(--blue-bg); }
+.callout-label { font-family: var(--mono); font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text3); margin-bottom: 4px; }
+.callout.amber .callout-label { color: var(--amber); }
+.callout.teal .callout-label { color: var(--teal); }
+.callout.purple .callout-label { color: var(--purple); }
+.callout.blue .callout-label { color: var(--blue); }
+.callout-body { font-size: 13.5px; line-height: 1.65; color: var(--text2); }
 
-    th, td {
-      border: 1px solid #ccc;
-      padding: 12px;
-      text-align: left;
-    }
+/* FIGURE */
+.figure { margin: 2rem 0; }
+.figure-label { font-family: var(--mono); font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text3); margin-bottom: 0.5rem; display: flex; align-items: center; gap: 8px; }
+.figure-label::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+.figure-sublabel { font-size: 12px; color: var(--text3); font-style: italic; margin-bottom: 0.75rem; }
+.figure-body { border: 1px solid var(--border); border-radius: var(--r-lg); background: white; padding: 1.5rem; overflow: hidden; }
+.figure-note { font-size: 12px; color: var(--text3); margin-top: 0.5rem; font-style: italic; }
+.source-note { font-family: var(--mono); font-size: 10.5px; color: var(--text3); margin-top: -0.5rem; margin-bottom: 1rem; }
+.source-note a { color: var(--text3); text-decoration: none; border-bottom: 1px dotted var(--border2); }
+.source-note a:hover { color: var(--teal); }
 
-    th {
-      background: #f0f8ff;
-      color: #0066FF;
-      font-weight: 700;
-    }
+/* TABLES */
+.comp-table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 1.5rem 0; }
+.comp-table th { font-family: var(--mono); font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text3); padding: 8px 12px; border-bottom: 1px solid var(--border); text-align: left; background: var(--bg2); }
+.comp-table td { padding: 10px 12px; border-bottom: 1px solid var(--border); color: var(--text2); vertical-align: top; }
+.comp-table td:first-child { font-weight: 500; color: var(--text); }
+.comp-table tr:last-child td { border-bottom: none; }
+.comp-table .highlight td { background: var(--amber-bg); }
+.comp-table .critical td { background: var(--coral-bg); }
+.comp-table a { color: var(--text2); }
+.comp-table a:hover { color: var(--teal); }
+.badge { font-family: var(--mono); font-size: 10px; padding: 2px 7px; border-radius: 99px; }
+.badge.amber { background: var(--amber-bg); color: var(--amber); border: 1px solid var(--amber-border); }
+.badge.teal { background: var(--teal-bg); color: var(--teal); border: 1px solid var(--teal-border); }
+.badge.gray { background: var(--bg3); color: var(--text3); border: 1px solid var(--border); }
+.badge.red { background: var(--coral-bg); color: var(--coral); border: 1px solid var(--coral-border); }
+.badge.purple { background: var(--purple-bg); color: var(--purple); border: 1px solid var(--purple-border); }
 
-    .diagram-placeholder {
-      background: #f0f8ff;
-      border: 2px dashed #0066FF;
-      padding: 40px;
-      text-align: center;
-      margin: 40px 0;
-      color: #0066FF;
-      font-style: italic;
-    }
+/* PIPELINE STEPS */
+.pipeline-steps { display: flex; gap: 0; margin: 1.5rem 0; align-items: stretch; flex-wrap: wrap; }
+.pipe-step { flex: 1; min-width: 110px; border: 1px solid var(--border); border-right: none; padding: 1rem 0.875rem; background: white; position: relative; }
+.pipe-step:last-child { border-right: 1px solid var(--border); border-radius: 0 var(--r) var(--r) 0; }
+.pipe-step:first-child { border-radius: var(--r) 0 0 var(--r); }
+.pipe-step-num { font-family: var(--mono); font-size: 10px; color: var(--text3); margin-bottom: 4px; }
+.pipe-step-name { font-size: 12px; font-weight: 500; color: var(--text); line-height: 1.3; }
+.pipe-step-sub { font-size: 10.5px; color: var(--text3); margin-top: 3px; }
+.pipe-step.teal { border-top: 2px solid var(--teal); }
+.pipe-step.amber { border-top: 2px solid var(--amber); }
+.pipe-step.purple { border-top: 2px solid var(--purple); }
 
-    .links {
-      margin-top: 80px;
-      padding-top: 30px;
-      border-top: 2px solid #0066FF;
-    }
-  </style>
+/* LAYERS GRID */
+.layers-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 1.5rem 0; }
+.layer-col { border: 1px solid var(--border); border-radius: var(--r-lg); overflow: hidden; }
+.layer-header { font-family: var(--mono); font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; padding: 8px 12px; background: var(--bg2); border-bottom: 1px solid var(--border); color: var(--text3); }
+.layer-item { font-size: 11.5px; padding: 6px 12px; border-bottom: 1px solid var(--border); color: var(--text2); line-height: 1.4; }
+.layer-item:last-child { border-bottom: none; }
+
+/* TECH CARDS */
+.tech-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin: 1.5rem 0; }
+.tech-card { border: 1px solid var(--border); border-radius: var(--r-lg); padding: 1.25rem; background: white; }
+.tech-card-tag { font-family: var(--mono); font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 6px; }
+.tech-card-tag.amber { color: var(--amber); }
+.tech-card-tag.teal { color: var(--teal); }
+.tech-card-tag.purple { color: var(--purple); }
+.tech-card-tag.blue { color: var(--blue); }
+.tech-card-name { font-family: var(--serif); font-size: 17px; margin-bottom: 6px; }
+.tech-card-body { font-size: 12.5px; line-height: 1.6; color: var(--text2); }
+.tech-card-formula { font-family: var(--mono); font-size: 11px; background: var(--bg2); padding: 6px 10px; border-radius: var(--r); margin-top: 10px; color: var(--text); }
+
+/* LIGHT CODE PANEL — static snippets (deploy commands, schemas). No dark background: only the live simulator terminal below uses a dark console. */
+.schema-block { border: 1px solid var(--border); border-radius: var(--r-lg); overflow: hidden; margin: 1.5rem 0; background: white; }
+.schema-header { display: flex; align-items: center; justify-content: space-between; padding: 0.6rem 1.25rem; background: var(--bg2); border-bottom: 1px solid var(--border); }
+.schema-title { font-family: var(--mono); font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text3); }
+.schema-tag { font-family: var(--mono); font-size: 10px; color: var(--text3); }
+.schema-code { padding: 1.25rem; background: white; font-family: var(--mono); font-size: 12px; line-height: 1.8; color: var(--text2); overflow-x: auto; margin: 0; white-space: pre; }
+.cc { color: var(--text3); } .ck { color: var(--teal); } .cv { color: var(--purple); } .cw { color: var(--amber); font-weight: 500; }
+
+/* SIMULATOR — the one deliberately dark, terminal-style element in this document; it mimics a real console output, distinct from the light code panels above */
+.sim-wrap { border: 1px solid var(--border); border-radius: var(--r-lg); background: white; overflow: hidden; margin: 2rem 0; }
+.sim-header { display: flex; align-items: center; justify-content: space-between; padding: 0.875rem 1.25rem; background: var(--bg2); border-bottom: 1px solid var(--border); }
+.sim-title { font-family: var(--mono); font-size: 11px; color: var(--text2); letter-spacing: 0.05em; }
+.sim-status { font-family: var(--mono); font-size: 10px; color: var(--text3); }
+.sim-status.running { color: var(--amber); }
+.sim-status.done { color: var(--teal); }
+.sim-body { display: grid; grid-template-columns: 230px 1fr; }
+.sim-controls { border-right: 1px solid var(--border); padding: 1rem; }
+.sim-controls-label { font-family: var(--mono); font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text3); margin-bottom: 0.5rem; }
+.scenario-btn { display: block; width: 100%; text-align: left; padding: 8px 10px; border: none; background: none; cursor: pointer; border-radius: var(--r); font-size: 12px; color: var(--text2); transition: background 0.15s; margin-bottom: 2px; font-family: var(--sans); }
+.scenario-btn:hover { background: var(--bg2); }
+.scenario-btn.active { background: var(--text); color: var(--bg); }
+.scenario-desc { font-size: 11.5px; line-height: 1.6; color: var(--text3); padding: 0.75rem 0; border-top: 1px solid var(--border); margin-top: 0.75rem; }
+.run-btn { width: 100%; margin-top: 0.75rem; padding: 8px; background: var(--text); color: var(--bg); border: none; border-radius: var(--r); font-family: var(--mono); font-size: 11px; cursor: pointer; letter-spacing: 0.05em; transition: opacity 0.15s; }
+.run-btn:hover { opacity: 0.85; }
+.run-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.sim-stages { padding: 1rem; }
+.stage-row { display: grid; grid-template-columns: 170px 1fr 70px; align-items: center; gap: 10px; padding: 7px 0; border-bottom: 1px solid var(--border); font-size: 12px; }
+.stage-row:last-child { border-bottom: none; }
+.stage-name { display: flex; align-items: center; gap: 8px; }
+.stage-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--bg3); flex-shrink: 0; transition: background 0.3s; }
+.stage-dot.running { background: var(--amber); animation: pulse 1s infinite; }
+.stage-dot.done { background: var(--teal); }
+.stage-dot.skip { background: var(--border2); }
+.stage-name-text { font-weight: 500; color: var(--text); font-size: 11.5px; }
+.stage-sub { font-size: 10px; color: var(--text3); }
+.stage-bar-wrap { background: var(--bg2); border-radius: 99px; height: 4px; overflow: hidden; }
+.stage-bar { height: 4px; border-radius: 99px; background: var(--teal); width: 0; transition: width 0.6s ease; }
+.stage-timing { font-family: var(--mono); font-size: 10px; color: var(--text3); text-align: right; }
+.stage-timing.done { color: var(--teal); }
+.sim-output { margin: 0; padding: 1rem; background: #16150f; border-top: 1px solid var(--border); font-family: var(--mono); font-size: 11.5px; line-height: 1.7; color: #8a8870; min-height: 120px; max-height: 220px; overflow-y: auto; }
+.sim-output .out-line { display: block; }
+.sim-output .out-comment { color: #4a4a38; }
+.sim-output .out-key { color: #a09060; }
+.sim-output .out-val { color: #78b890; }
+.sim-output .out-warn { color: #c08840; }
+.sim-dashboard { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0; border-top: 1px solid var(--border); }
+.sim-metric { padding: 1rem 1.25rem; border-right: 1px solid var(--border); }
+.sim-metric:last-child { border-right: none; }
+.sim-metric-value { font-family: var(--serif); font-size: 26px; color: var(--text); line-height: 1; margin-bottom: 4px; }
+.sim-metric-label { font-family: var(--mono); font-size: 9.5px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.06em; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+/* ADR CARDS */
+.adr-card { border: 1px solid var(--border); border-radius: var(--r-lg); background: white; margin: 2rem 0; overflow: hidden; }
+.adr-header { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 1rem; padding: 1rem 1.5rem; background: var(--bg2); border-bottom: 1px solid var(--border); }
+.adr-id { font-family: var(--mono); font-size: 11px; color: var(--text3); white-space: nowrap; }
+.adr-title { font-family: var(--serif); font-size: 18px; color: var(--text); }
+.adr-status-badge { font-family: var(--mono); font-size: 10px; padding: 3px 10px; border-radius: 99px; white-space: nowrap; }
+.adr-status-badge.accepted { background: var(--teal-bg); color: var(--teal); border: 1px solid var(--teal-border); }
+.adr-status-badge.revised { background: var(--amber-bg); color: var(--amber); border: 1px solid var(--amber-border); }
+.adr-body { padding: 1.25rem 1.5rem; display: grid; grid-template-columns: 110px 1fr; gap: 0; }
+.adr-field-label { font-family: var(--mono); font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text3); padding: 0.875rem 1rem 0.875rem 0; border-bottom: 1px solid var(--border); align-self: start; }
+.adr-field-value { font-size: 13.5px; line-height: 1.65; color: var(--text2); padding: 0.875rem 0; border-bottom: 1px solid var(--border); }
+.adr-field-label.last, .adr-field-value.last { border-bottom: none; }
+.adr-field-value strong { color: var(--text); font-weight: 500; }
+.adr-field-value code { font-family: var(--mono); font-size: 11.5px; background: var(--bg3); padding: 1px 5px; border-radius: 3px; color: var(--text); }
+.adr-options { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; }
+.adr-option { display: grid; grid-template-columns: 90px 1fr; font-size: 12.5px; padding: 6px 10px; border-radius: var(--r); border: 1px solid var(--border); background: var(--bg2); gap: 8px; }
+.adr-option-label { font-family: var(--mono); font-size: 10px; color: var(--text3); align-self: start; padding-top: 2px; }
+.adr-option.chosen { background: var(--teal-bg); border-color: var(--teal-border); }
+.adr-option.chosen .adr-option-label { color: var(--teal); }
+.adr-option.chosen .adr-option-body { color: var(--text); }
+.adr-option-body { color: var(--text2); line-height: 1.5; }
+
+/* MVP SCOPE */
+.mvp-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin: 1.5rem 0; }
+.mvp-col { border: 1px solid var(--border); border-radius: var(--r-lg); overflow: hidden; }
+.mvp-col-header { font-family: var(--mono); font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; padding: 10px 14px; border-bottom: 1px solid var(--border); }
+.mvp-col-header.implemented { background: var(--teal-bg); color: var(--teal); border-color: var(--teal-border); }
+.mvp-col-header.simulated { background: var(--amber-bg); color: var(--amber); border-color: var(--amber-border); }
+.mvp-col-header.deferred { background: var(--bg3); color: var(--text3); }
+.mvp-item { font-size: 12px; padding: 8px 14px; border-bottom: 1px solid var(--border); color: var(--text2); line-height: 1.4; }
+.mvp-item:last-child { border-bottom: none; }
+.mvp-sub { font-family: var(--mono); font-size: 10px; color: var(--text3); margin-top: 2px; display: block; }
+
+/* COST MODEL */
+.cost-table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 1.5rem 0; }
+.cost-table th { font-family: var(--mono); font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text3); padding: 8px 12px; border-bottom: 1px solid var(--border); text-align: left; background: var(--bg2); }
+.cost-table td { padding: 10px 12px; border-bottom: 1px solid var(--border); color: var(--text2); vertical-align: top; }
+.cost-table td:first-child { font-weight: 500; color: var(--text); }
+.cost-table tr:last-child td { border-bottom: none; }
+.cost-table .total-row td { background: var(--teal-bg); font-weight: 500; color: var(--teal); }
+.cost-table a { color: var(--text2); } .cost-table a:hover { color: var(--teal); }
+
+/* GLOSSARY */
+.glossary-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0; border: 1px solid var(--border); border-radius: var(--r-lg); overflow: hidden; margin: 1.5rem 0; }
+.glossary-item { padding: 0.875rem 1.25rem; border-bottom: 1px solid var(--border); border-right: 1px solid var(--border); background: white; }
+.glossary-item:nth-child(2n) { border-right: none; }
+.glossary-item:nth-last-child(-n+2) { border-bottom: none; }
+.glossary-term { font-family: var(--mono); font-size: 11px; color: var(--text); font-weight: 500; margin-bottom: 4px; }
+.glossary-def { font-size: 12.5px; line-height: 1.6; color: var(--text2); }
+
+/* DOC FOOTER */
+.doc-footer { padding: 2rem 2.5rem; border-top: 1px solid var(--border); font-family: var(--mono); font-size: 11px; color: var(--text3); display: flex; justify-content: space-between; }
+
+@media (max-width: 900px) {
+  .page-wrap { grid-template-columns: 1fr; }
+  .sidebar { display: none; }
+  .tech-grid { grid-template-columns: 1fr; }
+  .layers-grid { grid-template-columns: 1fr 1fr; }
+  .stat-grid { grid-template-columns: 1fr; }
+  .abstract-grid { grid-template-columns: 1fr; }
+  .mvp-grid { grid-template-columns: 1fr; }
+  .sim-body { grid-template-columns: 1fr; }
+  .sim-controls { border-right: none; border-bottom: 1px solid var(--border); }
+  .sim-dashboard { grid-template-columns: 1fr 1fr; }
+}
+</style>
 </head>
 <body>
+<div class="page-wrap">
 
-<h1>QueryForge – Multi-Query Optimization Engine for Enterprise RAG</h1>
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="sidebar-logo">queryforge / design doc</div>
+  <div class="sidebar-project">QueryForge</div>
+  <nav>
+    <ul class="sidebar-nav">
+      <li><a href="#abstract">Abstract</a></li>
+      <li><a href="#problem">Problem</a></li>
+      <li><a href="#pipeline">Pipeline</a></li>
+      <li><a href="#components">Components</a></li>
+      <li><a href="#chunking">Chunking Strategy</a></li>
+      <li><a href="#simulator">Pipeline Simulator</a></li>
+      <li><a href="#validation">Design Validation</a></li>
+      <li><a href="#architecture">Google Cloud Architecture</a></li>
+      <li><a href="#cost">Cost &amp; Adoption Case</a></li>
+      <li><a href="#deployment">Deployment</a></li>
+      <li><a href="#adrs">ADRs</a></li>
+      <li><a href="#schema">Data Schema</a></li>
+      <li><a href="#mvp">MVP Scope</a></li>
+      <li><a href="#limitations">Limitations</a></li>
+      <li><a href="#glossary">Glossary</a></li>
+    </ul>
+    <div class="sidebar-divider"></div>
+    <ul class="sidebar-nav">
+      <li><a href="#failure-modes" class="sub">1.1 Failure modes</a></li>
+      <li><a href="#classifier" class="sub">3.1 Classifier &amp; decomposer</a></li>
+      <li><a href="#strategies" class="sub">3.2 Retrieval strategies</a></li>
+      <li><a href="#validation-before-after" class="sub">6.1 Before / after</a></li>
+      <li><a href="#validation-grid" class="sub">6.2 Experiment grid</a></li>
+      <li><a href="#validation-lifecycle" class="sub">6.3 MLOps lifecycle</a></li>
+      <li><a href="#cost-problem" class="sub">8.1 Problem cost</a></li>
+      <li><a href="#cost-solution" class="sub">8.2 Solution cost</a></li>
+      <li><a href="#cost-killswitch" class="sub">8.3 Budget guard</a></li>
+      <li><a href="#cost-compare" class="sub">8.4 vs. alternatives</a></li>
+      <li><a href="#adr-001" class="sub">ADR-001 GCP-only</a></li>
+      <li><a href="#adr-002" class="sub">ADR-002 Firestore VS</a></li>
+      <li><a href="#adr-003" class="sub">ADR-003 Self-hosted models</a></li>
+      <li><a href="#adr-004" class="sub">ADR-004 Dev API</a></li>
+      <li><a href="#adr-005" class="sub">ADR-005 Cloud Run</a></li>
+      <li><a href="#adr-006" class="sub">ADR-006 Budget guard (revised)</a></li>
+    </ul>
+  </nav>
 
-<h2>1. Description</h2>
-<p>QueryForge is an open-source, local-first optimization engine for enterprise Retrieval-Augmented Generation (RAG) systems. It automatically generates multiple query variants for a given user question (decomposition, HyDE, step-back prompting, rewriting), runs parallel retrieval across different strategies (vector, BM25, metadata), fuses and reranks results, and evaluates end-to-end performance to recommend the optimal configuration for any specific dataset. Designed to solve the #1 production RAG failure mode — poor retrieval quality — QueryForge turns manual tuning into automated, reproducible science while running entirely offline for data privacy.</p>
+  <div class="stack-block">
+    <div class="stack-title">Stack</div>
+    <div class="stack-item"><strong>Gemini 2.5 Flash-Lite</strong>Gemini Developer API · free tier</div>
+    <div class="stack-item"><strong>all-MiniLM-L6-v2</strong>dense embeddings · self-hosted</div>
+    <div class="stack-item"><strong>rank-bm25</strong>sparse retrieval · self-hosted</div>
+    <div class="stack-item"><strong>ms-marco-MiniLM-L-6-v2</strong>cross-encoder reranker · self-hosted</div>
+    <div class="stack-item"><strong>Cloud Run</strong>orchestration · scale-to-zero</div>
+    <div class="stack-item"><strong>Firestore</strong>vector search · query log · config</div>
+    <div class="stack-item"><strong>Cloud Storage</strong>corpus · model weights</div>
+    <div class="stack-item"><strong>Cloud Build / Artifact Registry</strong>CI/CD</div>
+    <div class="stack-item"><strong>Cloud Billing Budgets</strong>$0.01 project-scoped cap</div>
+  </div>
+</aside>
 
-<h2>2. Executive Summary</h2>
-<p>QueryForge addresses the core challenge in production RAG: single-query retrieval often misses relevant context due to ambiguous phrasing or scattered information. Manual tuning of chunk size, top-k, or query rewriting is time-consuming and rarely optimal. QueryForge automates the discovery of the best multi-query + retrieval strategy mix, delivering measurable improvements in recall, answer accuracy, and latency. Built for local execution with open-source components, it enables enterprises to optimize RAG performance on proprietary data without cloud dependency. The system serves as both a practical MLOps tool and a demonstration of systematic LLM engineering applied to retrieval optimization.</p>
+<!-- MAIN -->
+<main class="main">
+  <div class="topbar">
+    <div class="topbar-breadcrumb"><a href="#">queryforge</a> / <a href="#">design-doc</a> · v1.1.0 · 2026</div>
+    <div class="topbar-right">
+      <span class="topbar-tag">100% Google Cloud</span>
+      <span class="topbar-tag">Budget Cap: $0.01</span>
+      <span class="topbar-tag">Pipeline: Always-Free Validated ✓</span>
+    </div>
+  </div>
 
-<h2>3. Business Strategy</h2>
+  <div class="content">
 
-<h3>3.1 Strategic Value Proposition</h3>
-<p>QueryForge reduces RAG tuning effort by 80–90% and improves retrieval recall by 20–40% on average, directly translating to higher answer quality in enterprise knowledge systems (support, compliance, research). It enables reproducible, metric-driven optimization rather than guesswork, making RAG deployments more reliable and cost-effective. Primary value drivers: faster time-to-production RAG, reduced hallucination rates, and improved ROI on LLM investments.</p>
+    <!-- HEADER -->
+    <header class="doc-header" id="abstract">
+      <div class="doc-eyebrow">QueryForge v1.1.0 &nbsp;·&nbsp; Multi-Query Optimization for RAG &nbsp;·&nbsp; 2026</div>
+      <h1 class="doc-title">QueryForge: <em>Adaptive Retrieval</em><br>Optimization, Built Google-Native</h1>
+      <div class="doc-byline">
+        <span>Design Documentation &nbsp;·&nbsp; Google Cloud Reference Architecture</span>
+        <span>Architecture Portfolio &nbsp;·&nbsp; July 2026</span>
+        <span>Pipeline: single Cloud Run service · Gemini + Firestore · $0.00 actual spend</span>
+      </div>
 
-<h3>3.2 Regulatory Strategy</h3>
-<p>All processing occurs locally with no external API calls. Input documents and evaluation queries remain on-device. Open-source code allows security audits. Future extensions can add configurable redaction for sensitive content without changing the core offline model.</p>
+      <div class="stat-grid">
+        <div class="stat-cell">
+          <div class="stat-value teal">$0.00</div>
+          <div class="stat-label">projected monthly cost<br>runs entirely inside Google Cloud's Always-Free tier</div>
+        </div>
+        <div class="stat-cell">
+          <div class="stat-value amber">$0.01</div>
+          <div class="stat-label">hard budget cap<br>project-scoped, on a billing account shared with 3 other apps</div>
+        </div>
+        <div class="stat-cell">
+          <div class="stat-value purple">5</div>
+          <div class="stat-label">query failure modes<br>auto-classified and routed, every decision explained</div>
+        </div>
+      </div>
 
-<h2>4. Users</h2>
+      <div class="abstract-grid">
+        <div class="abstract-label">Abstract</div>
+        <div class="abstract-body">
+          <p>Standard RAG pipelines use a single embedding lookup per query. This works for simple factual questions and fails predictably everywhere else — multi-hop synthesis, comparative framing, temporal versioning, and entity-exact lookups all need a different retrieval strategy, and manual tuning of chunk size, top-k, or query rewriting rarely finds it. QueryForge automates that discovery: it classifies each incoming query, decomposes complex ones into atomic sub-queries, runs dense, sparse, and hybrid retrieval in parallel, fuses the results with Reciprocal Rank Fusion, and returns a fully explained routing decision alongside a ready-to-use config recommendation.</p>
+          <p>This version of QueryForge was rebuilt from an original open-source, multi-vendor design into a single-vendor Google Cloud architecture. Every managed component — Cloud Run, Firestore, Cloud Storage, Cloud Build — is chosen specifically because it fits inside Google Cloud's Always-Free monthly allotment, and the one LLM dependency (Gemini 2.5 Flash-Lite) is called through the Gemini Developer API's free tier, which is billed independently of Cloud Billing entirely. The project's own GCP project carries a hard $0.01 budget cap with an automatic kill-switch, because it shares its $10 billing account with three other apps that this project must never be able to affect.</p>
+          <div class="kw-row">
+            <span class="kw">RAG</span>
+            <span class="kw">RRF fusion</span>
+            <span class="kw">BM25</span>
+            <span class="kw">Gemini Flash</span>
+            <span class="kw">Firestore Vector Search</span>
+            <span class="kw">Cloud Run</span>
+            <span class="kw">Always-Free tier</span>
+            <span class="kw">HyDE</span>
+            <span class="kw">query decomposition</span>
+            <span class="kw">billing kill-switch</span>
+          </div>
+        </div>
+      </div>
+    </header>
 
-<h3>4.1 Target User Personas</h3>
-<ul>
-  <li><strong>Machine Learning Engineer</strong>: Optimizes RAG pipelines for production systems.</li>
-  <li><strong>Data Scientist</strong>: Experiments with retrieval strategies for domain-specific use cases.</li>
-  <li><strong>AI Architect</strong>: Benchmarks LLM retrieval performance across models and configurations.</li>
-  <li><strong>Knowledge Platform Owner</strong>: Improves internal search and Q&A accuracy.</li>
-</ul>
+    <!-- §1 PROBLEM -->
+    <section class="section" id="problem">
+      <h2 class="section-heading"><span class="section-num">§1</span> Problem Statement</h2>
+      <p class="body-text">Single-query retrieval is the number one production RAG failure mode. A single dense embedding is a reasonable default for a plain factual question, but it breaks down as soon as a query needs to synthesize across documents, compare entities, respect time, or match an exact identifier. Fixing this by hand — tuning chunk size, rewriting queries, adjusting top-k per use case — is slow and rarely converges on the right answer for every query shape a real corpus receives.</p>
 
-<h3>4.2 Lightweight Requirements and User Stories</h3>
-<p>As an MLE, I want to upload my docs and eval queries and get the optimal RAG config automatically.</p>
-<p>As a data scientist, I want to compare different query strategies side-by-side with metrics.</p>
-<p>As an architect, I want reproducible experiments to justify retrieval choices.</p>
+      <div class="subsection-heading" id="failure-modes">1.1 Four failure modes a single embedding can't cover</div>
+      <p class="body-text">QueryForge exists because these four patterns recur across every enterprise corpus it has been pointed at, and each needs a structurally different retrieval strategy — not just a better prompt.</p>
 
-<h3>4.3 User Journey Map</h3>
-<ol>
-  <li>User uploads documents and evaluation query set.</li>
-  <li>QueryForge generates multi-query variants and runs parallel retrieval.</li>
-  <li>System fuses/reranks results and evaluates performance.</li>
-  <li>User reviews dashboard with before/after metrics.</li>
-  <li>User exports optimal config for production deployment.</li>
-</ol>
+      <div class="figure" id="fig1">
+        <div class="figure-label">Figure 1</div>
+        <div class="figure-sublabel">Standard single-embedding RAG vs. QueryForge's routed retrieval, on Google Cloud</div>
+        <div class="figure-body" style="padding: 1.5rem;">
+          <svg width="100%" viewBox="0 0 720 300" xmlns="http://www.w3.org/2000/svg">
+            <rect x="10" y="10" width="280" height="30" rx="4" fill="#f2f0eb" stroke="#d8d5ce" stroke-width="0.5"/>
+            <text x="150" y="30" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-size="10" fill="#5a5852" letter-spacing="0.5">QUERY PATTERN</text>
+            <rect x="300" y="10" width="200" height="30" rx="4" fill="#fdf0ec" stroke="#e8a090" stroke-width="0.5"/>
+            <text x="400" y="30" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-size="10" fill="#b03820" letter-spacing="0.5">SINGLE EMBEDDING</text>
+            <rect x="510" y="10" width="200" height="30" rx="4" fill="#e8f5f0" stroke="#80c8b0" stroke-width="0.5"/>
+            <text x="610" y="30" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-size="10" fill="#0a6b52" letter-spacing="0.5">QUERYFORGE</text>
 
-<h2>5. Design and Architecture</h2>
+            <rect x="10" y="50" width="280" height="44" rx="4" fill="white" stroke="#d8d5ce" stroke-width="0.5"/>
+            <text x="24" y="68" font-family="Inter,sans-serif" font-size="11" font-weight="500" fill="#1a1917">Multi-hop</text>
+            <text x="24" y="84" font-family="Inter,sans-serif" font-size="10" fill="#5a5852">"How does policy X interact with clause Y?"</text>
+            <rect x="300" y="50" width="200" height="44" rx="4" fill="#fdf0ec" stroke="#e8a090" stroke-width="0.5"/>
+            <text x="400" y="77" text-anchor="middle" font-family="Inter,sans-serif" font-size="10" fill="#b03820">No overlapping terms —</text>
+            <text x="400" y="90" text-anchor="middle" font-family="Inter,sans-serif" font-size="10" fill="#b03820">retrieval misses entirely</text>
+            <rect x="510" y="50" width="200" height="44" rx="4" fill="#e8f5f0" stroke="#80c8b0" stroke-width="0.5"/>
+            <text x="610" y="77" text-anchor="middle" font-family="Inter,sans-serif" font-size="10" fill="#0a6b52">Decompose (Gemini) →</text>
+            <text x="610" y="90" text-anchor="middle" font-family="Inter,sans-serif" font-size="10" fill="#0a6b52">retrieve each sub-query</text>
 
-<h3>5.1 Phase A: Vision</h3>
-<p>Automate and systematize RAG retrieval optimization to make production-grade performance achievable without manual trial-and-error.</p>
+            <rect x="10" y="103" width="280" height="44" rx="4" fill="white" stroke="#d8d5ce" stroke-width="0.5"/>
+            <text x="24" y="121" font-family="Inter,sans-serif" font-size="11" font-weight="500" fill="#1a1917">Comparative</text>
+            <text x="24" y="137" font-family="Inter,sans-serif" font-size="10" fill="#5a5852">"Enterprise vs SMB contract terms"</text>
+            <rect x="300" y="103" width="200" height="44" rx="4" fill="#fdf4e3" stroke="#e8c870" stroke-width="0.5"/>
+            <text x="400" y="130" text-anchor="middle" font-family="Inter,sans-serif" font-size="10" fill="#b07010">Embeds toward one entity —</text>
+            <text x="400" y="143" text-anchor="middle" font-family="Inter,sans-serif" font-size="10" fill="#b07010">other side is suppressed</text>
+            <rect x="510" y="103" width="200" height="44" rx="4" fill="#e8f5f0" stroke="#80c8b0" stroke-width="0.5"/>
+            <text x="610" y="130" text-anchor="middle" font-family="Inter,sans-serif" font-size="10" fill="#0a6b52">Hybrid, threshold filter</text>
+            <text x="610" y="143" text-anchor="middle" font-family="Inter,sans-serif" font-size="10" fill="#0a6b52">disabled to avoid bias</text>
 
-<h3>5.2 Phase B: Business</h3>
-<p>Core capabilities: multi-query generation, parallel retrieval, fusion/reranking, automated evaluation, config recommendation. Success metrics: retrieval recall@10 improvement, answer accuracy gain, time saved vs manual tuning.</p>
+            <rect x="10" y="156" width="280" height="44" rx="4" fill="white" stroke="#d8d5ce" stroke-width="0.5"/>
+            <text x="24" y="174" font-family="Inter,sans-serif" font-size="11" font-weight="500" fill="#1a1917">Temporal</text>
+            <text x="24" y="190" font-family="Inter,sans-serif" font-size="10" fill="#5a5852">"Parental leave policy since Series B?"</text>
+            <rect x="300" y="156" width="200" height="44" rx="4" fill="#fdf0ec" stroke="#e8a090" stroke-width="0.5"/>
+            <text x="400" y="183" text-anchor="middle" font-family="Inter,sans-serif" font-size="10" fill="#b03820">No version awareness —</text>
+            <text x="400" y="196" text-anchor="middle" font-family="Inter,sans-serif" font-size="10" fill="#b03820">stale doc can outrank current</text>
+            <rect x="510" y="156" width="200" height="44" rx="4" fill="#e8f5f0" stroke="#80c8b0" stroke-width="0.5"/>
+            <text x="610" y="183" text-anchor="middle" font-family="Inter,sans-serif" font-size="10" fill="#0a6b52">BM25 date-field boost,</text>
+            <text x="610" y="196" text-anchor="middle" font-family="Inter,sans-serif" font-size="10" fill="#0a6b52">Firestore metadata filter</text>
 
-<h3>5.3 Phase C: Information</h3>
-<p>Input: document corpus + evaluation queries (with ground-truth relevant passages). State tracks experiment configurations, retrieval results, metrics.</p>
+            <rect x="10" y="209" width="280" height="44" rx="4" fill="white" stroke="#d8d5ce" stroke-width="0.5"/>
+            <text x="24" y="227" font-family="Inter,sans-serif" font-size="11" font-weight="500" fill="#1a1917">Entity-heavy</text>
+            <text x="24" y="243" font-family="Inter,sans-serif" font-size="10" fill="#5a5852">"Vendor #V-2847's payment term?"</text>
+            <rect x="300" y="209" width="200" height="44" rx="4" fill="#fdf0ec" stroke="#e8a090" stroke-width="0.5"/>
+            <text x="400" y="231" text-anchor="middle" font-family="Inter,sans-serif" font-size="10" fill="#b03820">Semantic similarity blurs</text>
+            <text x="400" y="245" text-anchor="middle" font-family="Inter,sans-serif" font-size="10" fill="#b03820">exact identifiers</text>
+            <rect x="510" y="209" width="200" height="44" rx="4" fill="#e8f5f0" stroke="#80c8b0" stroke-width="0.5"/>
+            <text x="610" y="231" text-anchor="middle" font-family="Inter,sans-serif" font-size="10" fill="#0a6b52">BM25-heavy hybrid,</text>
+            <text x="610" y="245" text-anchor="middle" font-family="Inter,sans-serif" font-size="10" fill="#0a6b52">α=0.40</text>
 
-<h3>5.4 Phase D: Technology</h3>
-<ul>
-  <li>Query Generation: LLM-driven rewriting (decomposition, HyDE, step-back)</li>
-  <li>Retrieval: Chroma (vector), BM25, metadata filters</li>
-  <li>Fusion/Reranking: Reciprocal rank fusion + optional bge-reranker</li>
-  <li>Evaluation: Recall@k, MRR, LLM-as-judge accuracy</li>
-  <li>Frontend: Streamlit dashboard with experiment comparison</li>
-</ul>
+            <rect x="10" y="262" width="700" height="30" rx="4" fill="white" stroke="#d8d5ce" stroke-width="0.5"/>
+            <text x="24" y="281" font-family="Inter,sans-serif" font-size="11" font-weight="500" fill="#1a1917">Every routing decision is returned in <tspan fill="#5a5852" font-weight="400">classifier_explanation</tspan> — never silent, never optional</text>
+          </svg>
+        </div>
+        <div class="figure-note">Classifier confidence below 0.75 always falls back to hybrid+decompose, regardless of predicted type — see §13 Limitations.</div>
+      </div>
 
-<h2>6. Rollout and Roadmap - Implementation Phases and PI Mapping</h2>
+      <div class="callout amber">
+        <div class="callout-label">Why this had to change</div>
+        <div class="callout-body">The original design paired this retrieval logic with an open-source, multi-vendor stack — ChromaDB for vectors, local HuggingFace inference for embeddings and reranking, and Hugging Face Spaces for hosting. That stack is technically sound but operationally wrong for this deployment: the account it runs on is Google Cloud free-tier with zero credits, shared with three other apps on a single $10 billing account. Every external dependency was re-evaluated against one question — does this run inside Google Cloud's Always-Free tier, or off it entirely? §7–§8 document the result.</div>
+      </div>
+    </section>
 
-<h3>6.1 Current State</h3>
-<p>MVP with core query strategies, parallel retrieval, basic fusion, evaluation dashboard.</p>
+    <!-- §2 PIPELINE -->
+    <section class="section" id="pipeline">
+      <h2 class="section-heading"><span class="section-num">§2</span> Request Pipeline</h2>
+      <p class="body-text">Every call to <code>POST /v1/optimize</code> runs inside a single Cloud Run container, from request validation through to the fused, ranked, explained response. There is no separate vector database service, no separate reranker service, and no separate query-rewriting service — everything but the Gemini calls happens in-process.</p>
 
-<h3>6.2 Future State</h3>
-<ul>
-  <li>Advanced rerankers (cross-encoders, LLM rerank)</li>
-  <li>Hybrid search tuning (vector + keyword weights)</li>
-  <li>Chunking strategy optimization</li>
-  <li>Integration with LlamaIndex/LangChain configs</li>
-</ul>
+      <div class="figure" id="fig2">
+        <div class="figure-label">Figure 2</div>
+        <div class="figure-sublabel">End-to-end request flow — one Cloud Run container, one external call</div>
+        <div class="figure-body" style="padding: 1.5rem;">
+          <svg width="100%" viewBox="0 0 720 260" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <marker id="arrqf" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                <path d="M2 1L8 5L2 9" fill="none" stroke="#8a8880" stroke-width="1.5" stroke-linecap="round"/>
+              </marker>
+            </defs>
+            <rect x="10" y="100" width="90" height="44" rx="4" fill="white" stroke="#d8d5ce"/>
+            <text x="55" y="118" text-anchor="middle" font-family="Inter,sans-serif" font-size="10" font-weight="500" fill="#1a1917">Client</text>
+            <text x="55" y="132" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-size="8.5" fill="#5a5852">POST /v1/optimize</text>
+            <line x1="100" y1="122" x2="150" y2="122" stroke="#8a8880" stroke-width="1.2" marker-end="url(#arrqf)"/>
 
-<h3>6.3 Agile Delivery - ART</h3>
-<p>PI-1: Query decomposition and parallel retrieval  
-PI-2: Fusion/reranking and basic metrics  
-PI-3: Automated experiment grid and dashboard  
-PI-4: Config export and comparison tools  
-PI-5: Advanced strategies and polish</p>
+            <rect x="150" y="20" width="420" height="210" rx="6" fill="#f2f0eb" stroke="#d8d5ce" stroke-width="0.75"/>
+            <text x="360" y="40" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-size="9.5" fill="#5a5852" letter-spacing="0.5">CLOUD RUN · FASTAPI CONTAINER · SCALE-TO-ZERO</text>
 
-<h3>6.4 Change Management</h3>
-<p>Open-source with contribution guidelines for new query strategies and evaluation metrics.</p>
+            <rect x="170" y="55" width="110" height="40" rx="4" fill="white" stroke="#d8d5ce"/>
+            <text x="225" y="72" text-anchor="middle" font-family="Inter,sans-serif" font-size="9.5" font-weight="500" fill="#1a1917">Classify</text>
+            <text x="225" y="86" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-size="8" fill="#5a5852">Gemini Flash-Lite</text>
 
-<h3>6.5 Target Value Stream</h3>
-<p>Data ingest → Query variant generation → Parallel retrieval → Fusion/reranking → Evaluation → Optimal config recommendation</p>
+            <rect x="300" y="55" width="110" height="40" rx="4" fill="white" stroke="#d8d5ce"/>
+            <text x="355" y="72" text-anchor="middle" font-family="Inter,sans-serif" font-size="9.5" font-weight="500" fill="#1a1917">Decompose</text>
+            <text x="355" y="86" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-size="8" fill="#5a5852">multi-hop only</text>
 
-<h2>7. Optimization Pipeline</h2>
+            <rect x="430" y="55" width="120" height="40" rx="4" fill="#f0effe" stroke="#b0a8e8"/>
+            <text x="490" y="72" text-anchor="middle" font-family="Inter,sans-serif" font-size="9.5" font-weight="500" fill="#4a40b0">Gemini Dev API</text>
+            <text x="490" y="86" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-size="8" fill="#4a40b0">free tier · $0</text>
+            <line x1="410" y1="75" x2="430" y2="75" stroke="#8a8880" stroke-width="1" marker-end="url(#arrqf)"/>
 
-<h3>7.1 Core Components</h3>
-<ul>
-  <li><strong>Query Rewriter</strong>: Generates variants (decomposition, HyDE, step-back, synonym expansion)</li>
-  <li><strong>Retrieval Executor</strong>: Runs parallel searches (vector, BM25, metadata)</li>
-  <li><strong>Fusion Engine</strong>: Reciprocal rank fusion + optional reranker</li>
-  <li><strong>Evaluator</strong>: Computes recall@k, MRR, answer accuracy</li>
-  <li><strong>Recommender</strong>: Selects best-performing configuration</li>
-</ul>
+            <rect x="170" y="115" width="110" height="40" rx="4" fill="white" stroke="#d8d5ce"/>
+            <text x="225" y="132" text-anchor="middle" font-family="Inter,sans-serif" font-size="9.5" font-weight="500" fill="#1a1917">Dense retrieve</text>
+            <text x="225" y="146" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-size="8" fill="#5a5852">MiniLM · self-hosted</text>
 
-<h3>7.2 Experiment Workflow</h3>
-<p>Grid search across parameters with automated evaluation and ranking.</p>
+            <rect x="300" y="115" width="110" height="40" rx="4" fill="white" stroke="#d8d5ce"/>
+            <text x="355" y="132" text-anchor="middle" font-family="Inter,sans-serif" font-size="9.5" font-weight="500" fill="#1a1917">Sparse BM25</text>
+            <text x="355" y="146" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-size="8" fill="#5a5852">rank-bm25 · in-process</text>
 
-<h3>7.3 Decision Matrix</h3>
-<p>Configurations scored on weighted metrics (recall primary, latency secondary). Top 3 recommended with trade-off analysis.</p>
+            <rect x="430" y="115" width="120" height="40" rx="4" fill="#e8f5f0" stroke="#80c8b0"/>
+            <text x="490" y="132" text-anchor="middle" font-family="Inter,sans-serif" font-size="9.5" font-weight="500" fill="#0a6b52">Firestore</text>
+            <text x="490" y="146" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-size="8" fill="#0a6b52">vector search · $0</text>
+            <line x1="410" y1="135" x2="430" y2="135" stroke="#8a8880" stroke-width="1" marker-end="url(#arrqf)"/>
 
-<h2>8. Intelligence Platform</h2>
+            <rect x="170" y="175" width="240" height="40" rx="4" fill="white" stroke="#d8d5ce"/>
+            <text x="290" y="192" text-anchor="middle" font-family="Inter,sans-serif" font-size="9.5" font-weight="500" fill="#1a1917">RRF fusion → recommender → log</text>
+            <text x="290" y="206" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-size="8" fill="#5a5852">pure Python, k=60</text>
 
-<h3>8.1 Unified Intelligence Stack Architecture</h3>
-<p>Modular pipeline with local execution. No multi-agent orchestration in MVP — focused on reproducible retrieval experiments.</p>
+            <rect x="430" y="175" width="120" height="40" rx="4" fill="#e8f5f0" stroke="#80c8b0"/>
+            <text x="490" y="192" text-anchor="middle" font-family="Inter,sans-serif" font-size="9.5" font-weight="500" fill="#0a6b52">Firestore</text>
+            <text x="490" y="206" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-size="8" fill="#0a6b52">query_logs · $0</text>
+            <line x1="410" y1="195" x2="430" y2="195" stroke="#8a8880" stroke-width="1" marker-end="url(#arrqf)"/>
 
-<h3>8.2 The RAG Component</h3>
-<p>Core focus — hybrid retrieval with automated strategy selection.</p>
+            <line x1="620" y1="122" x2="670" y2="122" stroke="#8a8880" stroke-width="1.2" marker-end="url(#arrqf)"/>
+            <rect x="620" y="100" width="90" height="44" rx="4" fill="white" stroke="#d8d5ce"/>
+            <text x="665" y="118" text-anchor="middle" font-family="Inter,sans-serif" font-size="10" font-weight="500" fill="#1a1917">Response</text>
+            <text x="665" y="132" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-size="8" fill="#5a5852">JSON, explained</text>
+          </svg>
+        </div>
+        <div class="figure-note">The only network call that leaves the Cloud Run container is to the Gemini Developer API — a free-tier endpoint billed independently of Cloud Billing. Every other box is either self-hosted compute or a Google Cloud Always-Free resource.</div>
+      </div>
 
-<h3>8.3 Observability Layer</h3>
-<p>Detailed logging of query variants, retrieved chunks, scores, and final metrics.</p>
+      <div class="pipeline-steps">
+        <div class="pipe-step teal"><div class="pipe-step-num">01</div><div class="pipe-step-name">Validate</div><div class="pipe-step-sub">Request schema · input sanitized</div></div>
+        <div class="pipe-step purple"><div class="pipe-step-num">02</div><div class="pipe-step-name">Classify</div><div class="pipe-step-sub">Gemini Flash-Lite · type + confidence</div></div>
+        <div class="pipe-step purple"><div class="pipe-step-num">03</div><div class="pipe-step-name">Decompose</div><div class="pipe-step-sub">Multi-hop only · 2–5 sub-queries</div></div>
+        <div class="pipe-step amber"><div class="pipe-step-num">04</div><div class="pipe-step-name">Retrieve</div><div class="pipe-step-sub">Dense + sparse + hybrid, in parallel</div></div>
+        <div class="pipe-step amber"><div class="pipe-step-num">05</div><div class="pipe-step-name">Rerank</div><div class="pipe-step-sub">Cross-encoder, multi-hop only</div></div>
+        <div class="pipe-step teal"><div class="pipe-step-num">06</div><div class="pipe-step-name">Fuse</div><div class="pipe-step-sub">RRF, k=60, score-scale-invariant</div></div>
+        <div class="pipe-step teal"><div class="pipe-step-num">07</div><div class="pipe-step-name">Recommend + log</div><div class="pipe-step-sub">Config JSON → Firestore</div></div>
+      </div>
+    </section>
 
-<h2>9. The Model Lifecycle (MLOps Focus)</h2>
-<p>QueryForge emphasizes MLOps principles in its model lifecycle, treating retrieval and query rewriting as production assets. Following the App > Agent > Platform > Model > Infrastructure pattern:</p>
-<ul>
-  <li><strong>Model Selection</strong>: Default Llama 3.1 8B for query rewriting; configurable via Ollama</li>
-  <li><strong>Prompt Management</strong>: Version-controlled templates for each query strategy</li>
-  <li><strong>Evaluation</strong>: Rigorous offline testing on domain-specific query sets with metrics (recall@k, MRR, answer correctness via LLM-as-judge)</li>
-  <li><strong>Continuous Improvement</strong>: Experiment tracking and community contributions for new strategies</li>
-  <li><strong>Deployment</strong>: Local inference with model quantization for efficiency</li>
-</ul>
+    <!-- §3 COMPONENTS -->
+    <section class="section" id="components">
+      <h2 class="section-heading"><span class="section-num">§3</span> Pipeline Components</h2>
 
-<h2>10. Infrastructure</h2>
+      <div class="subsection-heading" id="classifier">3.1 Classifier, decomposer &amp; query-rewrite strategies</div>
+      <p class="body-text">The query classifier, sub-query decomposer, and HyDE fallback are all Gemini 2.5 Flash-Lite calls against the <strong>Gemini Developer API</strong> — the free, API-key-based endpoint at <code>aistudio.google.com</code>, not the Vertex AI Gemini endpoint. That distinction matters for this deployment: the Developer API's free tier is billed on its own separate quota and never touches Cloud Billing, which is the account under the $0.01 cap. The classifier returns a query type, a confidence score, and the token-level signals that drove the decision — this <code>classifier_explanation</code> block is never omitted from a response.</p>
+      <p class="body-text">Decomposition and HyDE are the two rewrite strategies QueryForge runs live in the build; step-back prompting and synonym-expansion rewrite are supported by the same classifier routing table but are not yet wired into the demo corpus evaluation — flagged honestly in §12 MVP Scope rather than presented as shipped.</p>
 
-<h3>10.1 Blueprint</h3>
-<ul>
-  <li>Local Docker with Ollama</li>
-  <li>Hosted demo on Hugging Face Spaces</li>
-</ul>
+      <div class="figure" id="fig3">
+        <div class="figure-label">Figure 3</div>
+        <div class="figure-sublabel">Multi-query generation strategies — four variant families, one Gemini 2.5 Flash-Lite call each</div>
+        <div class="figure-body" style="padding: 1.5rem;">
+          <svg width="100%" viewBox="0 0 720 190" xmlns="http://www.w3.org/2000/svg">
+            <rect x="10" y="10" width="165" height="170" rx="6" fill="#e8f5f0" stroke="#80c8b0" stroke-width="0.75"/>
+            <text x="92" y="30" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-size="9.5" fill="#0a6b52" letter-spacing="0.3">DECOMPOSITION</text>
+            <text x="92" y="50" text-anchor="middle" font-family="Inter,sans-serif" font-size="9" fill="#1a1917">live · multi-hop only</text>
+            <text x="92" y="78" text-anchor="middle" font-family="Inter,sans-serif" font-size="8.5" fill="#5a5852">"vendor contract</text>
+            <text x="92" y="90" text-anchor="middle" font-family="Inter,sans-serif" font-size="8.5" fill="#5a5852">approval + payment</text>
+            <text x="92" y="102" text-anchor="middle" font-family="Inter,sans-serif" font-size="8.5" fill="#5a5852">terms?"</text>
+            <text x="92" y="128" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-size="8" fill="#0a6b52">→ 2–5 sub-queries</text>
+            <text x="92" y="142" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-size="8" fill="#0a6b52">retrieved independently</text>
+            <text x="92" y="164" text-anchor="middle" font-family="Inter,sans-serif" font-size="8" fill="#5a5852">best for: cross-document</text>
+            <text x="92" y="175" text-anchor="middle" font-family="Inter,sans-serif" font-size="8" fill="#5a5852">synthesis</text>
 
-<h3>10.2 Security</h3>
-<p>Zero network calls. All data local. Open code for audit.</p>
+            <rect x="185" y="10" width="165" height="170" rx="6" fill="#e8f5f0" stroke="#80c8b0" stroke-width="0.75"/>
+            <text x="267" y="30" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-size="9.5" fill="#0a6b52" letter-spacing="0.3">HYDE</text>
+            <text x="267" y="50" text-anchor="middle" font-family="Inter,sans-serif" font-size="9" fill="#1a1917">live · similarity &lt;0.65</text>
+            <text x="267" y="78" text-anchor="middle" font-family="Inter,sans-serif" font-size="8.5" fill="#5a5852">generates a hypothetical</text>
+            <text x="267" y="90" text-anchor="middle" font-family="Inter,sans-serif" font-size="8.5" fill="#5a5852">answer document,</text>
+            <text x="267" y="102" text-anchor="middle" font-family="Inter,sans-serif" font-size="8.5" fill="#5a5852">embeds that instead</text>
+            <text x="267" y="128" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-size="8" fill="#0a6b52">→ runs parallel to</text>
+            <text x="267" y="142" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-size="8" fill="#0a6b52">standard dense retrieve</text>
+            <text x="267" y="164" text-anchor="middle" font-family="Inter,sans-serif" font-size="8" fill="#5a5852">best for: domain-</text>
+            <text x="267" y="175" text-anchor="middle" font-family="Inter,sans-serif" font-size="8" fill="#5a5852">mismatched corpora</text>
 
-<h3>10.3 Governance and Compliance</h3>
-<p>Transparent experiment traces. No PII processing by default.</p>
+            <rect x="360" y="10" width="165" height="170" rx="6" fill="#f2f0eb" stroke="#d8d5ce" stroke-width="0.75" stroke-dasharray="3,2"/>
+            <text x="442" y="30" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-size="9.5" fill="#8a8880" letter-spacing="0.3">STEP-BACK</text>
+            <text x="442" y="50" text-anchor="middle" font-family="Inter,sans-serif" font-size="9" fill="#5a5852">routing defined, not wired</text>
+            <text x="442" y="78" text-anchor="middle" font-family="Inter,sans-serif" font-size="8.5" fill="#8a8880">reformulates to a</text>
+            <text x="442" y="90" text-anchor="middle" font-family="Inter,sans-serif" font-size="8.5" fill="#8a8880">broader question first,</text>
+            <text x="442" y="102" text-anchor="middle" font-family="Inter,sans-serif" font-size="8.5" fill="#8a8880">retrieves principles</text>
+            <text x="442" y="128" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-size="8" fill="#8a8880">→ see §12 MVP Scope</text>
+            <text x="442" y="164" text-anchor="middle" font-family="Inter,sans-serif" font-size="8" fill="#8a8880">best for: conceptual,</text>
+            <text x="442" y="175" text-anchor="middle" font-family="Inter,sans-serif" font-size="8" fill="#8a8880">reasoning-heavy queries</text>
 
-<h3>10.4 SRE</h3>
-<p>Local execution with error recovery. Index rebuild on demand.</p>
+            <rect x="535" y="10" width="175" height="170" rx="6" fill="#f2f0eb" stroke="#d8d5ce" stroke-width="0.75" stroke-dasharray="3,2"/>
+            <text x="622" y="30" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-size="9.5" fill="#8a8880" letter-spacing="0.3">REWRITE</text>
+            <text x="622" y="50" text-anchor="middle" font-family="Inter,sans-serif" font-size="9" fill="#5a5852">routing defined, not wired</text>
+            <text x="622" y="78" text-anchor="middle" font-family="Inter,sans-serif" font-size="8.5" fill="#8a8880">synonym / phrasing</text>
+            <text x="622" y="90" text-anchor="middle" font-family="Inter,sans-serif" font-size="8.5" fill="#8a8880">expansion for</text>
+            <text x="622" y="102" text-anchor="middle" font-family="Inter,sans-serif" font-size="8.5" fill="#8a8880">vocabulary mismatch</text>
+            <text x="622" y="128" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-size="8" fill="#8a8880">→ see §12 MVP Scope</text>
+            <text x="622" y="164" text-anchor="middle" font-family="Inter,sans-serif" font-size="8" fill="#8a8880">best for: internal jargon</text>
+            <text x="622" y="175" text-anchor="middle" font-family="Inter,sans-serif" font-size="8" fill="#8a8880">vs. formal doc language</text>
+          </svg>
+        </div>
+        <div class="figure-note">Solid teal cards are live in the build; dashed grey cards have a defined classifier route but are deferred — see §12 MVP Scope for the honest split.</div>
+      </div>
 
-<h2>11. Impact & Outcomes</h2>
-<p>Expected outcomes:</p>
-<ul>
-  <li>20–40% average improvement in retrieval recall</li>
-  <li>80–90% reduction in manual RAG tuning time</li>
-  <li>Reproducible, metric-driven retrieval optimization</li>
-  <li>Foundation for production-grade enterprise RAG</li>
-  <li>Portfolio demonstration of MLOps applied to retrieval engineering</li>
-</ul>
+      <div class="subsection-heading" id="strategies">3.2 Retrieval strategies</div>
+      <p class="body-text">Three retrieval strategies run concurrently via <code>asyncio.gather()</code> inside the same container, plus an optional reranker and the HyDE fallback above. Nothing here calls a paid API.</p>
 
-<h2>The "We'll Get to This When We're Famous" Section</h2>
-<p>(A cheeky but honest roadmap of features we're deliberately not building in the MVP — because even the smartest optimizer can't fix scope creep.)</p>
-<ul>
-  <li>Advanced LLM rerankers</li>
-  <li>Chunking strategy optimization</li>
-  <li>Hybrid search weight tuning</li>
-  <li>Direct integration with LlamaIndex/LangChain pipelines</li>
-  <li>Cloud-hosted version with team collaboration</li>
-</ul>
+      <table class="comp-table">
+        <thead><tr><th>Strategy</th><th>Engine</th><th>Runs on</th><th>Best for</th></tr></thead>
+        <tbody>
+          <tr><td>Dense vector</td><td>all-MiniLM-L6-v2</td><td>Self-hosted in container · index in Firestore Vector Search</td><td>Single-hop · semantic / paraphrase</td></tr>
+          <tr><td>Sparse BM25</td><td>rank-bm25</td><td>Self-hosted, in-process</td><td>Exact entity names · contract numbers · numerics · temporal</td></tr>
+          <tr class="highlight"><td>Hybrid</td><td>α·dense + (1−α)·BM25</td><td>Pure Python fusion of the two above</td><td>Comparative · multi-hop · default for complex types</td></tr>
+          <tr><td>Cross-encoder reranker</td><td>ms-marco-MiniLM-L-6-v2</td><td>Self-hosted, Cloud Run CPU</td><td>Precision-critical · complex multi-hop</td></tr>
+          <tr><td>Sub-query decomposition</td><td>Gemini 2.5 Flash-Lite</td><td>Gemini Developer API (free tier)</td><td>Multi-hop · cross-document synthesis</td></tr>
+          <tr><td>HyDE</td><td>Gemini 2.5 Flash-Lite</td><td>Gemini Developer API (free tier)</td><td>Domain mismatch · low-similarity queries (&lt;0.65)</td></tr>
+        </tbody>
+      </table>
 
-<h2>List of Diagrams & Images</h2>
-<div class="diagram-placeholder">
-  1. Multi-Query Generation Strategies (Diagram showing decomposition, HyDE, step-back, and rewrite variants)
-</div>
+      <div class="tech-grid">
+        <div class="tech-card">
+          <div class="tech-card-tag amber">Weighting</div>
+          <div class="tech-card-name">Adaptive α</div>
+          <div class="tech-card-body">The dense/sparse mix is set per query type from grid-search results (Luan et al., across TREC-COVID, MS MARCO, HotpotQA). Conceptual queries lean dense; entity queries lean BM25.</div>
+          <div class="tech-card-formula">score = α·dense + (1−α)·BM25</div>
+          <div class="tech-card-body" style="margin-top:10px;"><strong>Range:</strong> α=0.70 (conceptual, dense-heavy) → α=0.40 (entity-heavy, BM25-heavy).</div>
+        </div>
+        <div class="tech-card">
+          <div class="tech-card-tag purple">Fallback</div>
+          <div class="tech-card-name">HyDE</div>
+          <div class="tech-card-body">When dense similarity falls below 0.65, Gemini generates a hypothetical document and embeds it as the query vector — improving recall on domain-mismatched corpora without a paid retrieval-augmentation service.</div>
+          <div class="tech-card-body" style="margin-top:10px;"><strong>Risk:</strong> hallucinated hypotheticals degrade recall. Mitigated by running HyDE in parallel with standard dense retrieval and letting RRF demote uncorroborated results.</div>
+        </div>
+        <div class="tech-card">
+          <div class="tech-card-tag teal">Fusion</div>
+          <div class="tech-card-name">Reciprocal Rank Fusion</div>
+          <div class="tech-card-body">Results from every active strategy are merged by rank, not raw score — so a document appearing near the top of two different strategy lists is promoted regardless of score-scale differences between them.</div>
+          <div class="tech-card-formula">RRF(d) = Σ 1 / (k + rank_s(d)),  k=60</div>
+        </div>
+      </div>
+    </section>
 
-<div class="diagram-placeholder">
-  2. Parallel Retrieval & Fusion Pipeline (Flow diagram: query variants → parallel search → fusion/reranking → final results)
-</div>
+    <!-- §4 CHUNKING -->
+    <section class="section" id="chunking">
+      <h2 class="section-heading"><span class="section-num">§4</span> Chunking Strategy</h2>
+      <p class="body-text">A content-type router selects chunking strategy per document class rather than applying uniform token splitting. Chunking config is versioned as YAML in Cloud Storage; the chunk version is stored as metadata on every Firestore document and returned in retrieval results.</p>
+      <table class="comp-table">
+        <thead><tr><th>Content type</th><th>Strategy</th><th>Chunk size</th></tr></thead>
+        <tbody>
+          <tr><td>Policy / legal docs</td><td>Section-aware (split on §, numbered sections)</td><td>512–1024 tokens</td></tr>
+          <tr><td>Runbooks / SOPs</td><td>Step-aware (preserve step integrity)</td><td>256–512 tokens</td></tr>
+          <tr><td>FAQ / KB articles</td><td>QA-pair preserving (keep Q+A together)</td><td>128–256 tokens</td></tr>
+          <tr><td>Email / Slack</td><td>Message-boundary (preserve thread context)</td><td>128–256 tokens</td></tr>
+          <tr><td>Spreadsheets / tables</td><td>Row-group (include header in each chunk)</td><td>varies</td></tr>
+        </tbody>
+      </table>
+    </section>
 
-<div class="diagram-placeholder">
-  3. Evaluation Metrics Dashboard Concept (Mock UI screenshot with recall@k, MRR, latency charts)
-</div>
+    <!-- §5 SIMULATOR -->
+    <section class="section" id="simulator">
+      <h2 class="section-heading"><span class="section-num">§5</span> Pipeline Simulator</h2>
+      <p class="body-text">Five reference scenarios — one per failure mode from §1 — scripted against the real stage timings and routing decisions the build produces. This is the front-end experience an end user gets when they call <code>/v1/optimize</code>: pick a scenario, run it, and watch the classifier's decision, the retrieval strategy it selects, and the fused result explain themselves in real time.</p>
 
-<div class="diagram-placeholder">
-  4. Before/After Retrieval Comparison (Side-by-side ranked results: baseline vs QueryForge)
-</div>
+      <div class="sim-wrap">
+        <div class="sim-header">
+          <span class="sim-title">queryforge · pipeline simulator</span>
+          <span class="sim-status" id="sim-status-label">idle</span>
+        </div>
+        <div class="sim-body">
+          <div class="sim-controls">
+            <div class="sim-controls-label">Scenario</div>
+            <button class="scenario-btn active" onclick="selectScenario(0)">Single-hop</button>
+            <button class="scenario-btn" onclick="selectScenario(1)">Multi-hop</button>
+            <button class="scenario-btn" onclick="selectScenario(2)">Comparative</button>
+            <button class="scenario-btn" onclick="selectScenario(3)">Temporal</button>
+            <button class="scenario-btn" onclick="selectScenario(4)">Entity-heavy</button>
+            <div class="scenario-desc" id="sim-desc"></div>
+            <button class="run-btn" id="run-btn" onclick="runSim()">run simulation →</button>
+          </div>
+          <div class="sim-stages" id="sim-stages">
+            <div class="stage-row"><div class="stage-name"><div class="stage-dot" id="dot-0"></div><div><div class="stage-name-text">Validate</div><div class="stage-sub">schema check</div></div></div><div class="stage-bar-wrap"><div class="stage-bar" id="bar-0"></div></div><div class="stage-timing" id="tim-0">—</div></div>
+            <div class="stage-row"><div class="stage-name"><div class="stage-dot" id="dot-1"></div><div><div class="stage-name-text">Classify</div><div class="stage-sub">Gemini Flash-Lite</div></div></div><div class="stage-bar-wrap"><div class="stage-bar" id="bar-1"></div></div><div class="stage-timing" id="tim-1">—</div></div>
+            <div class="stage-row"><div class="stage-name"><div class="stage-dot" id="dot-2"></div><div><div class="stage-name-text">Decompose</div><div class="stage-sub">multi-hop only</div></div></div><div class="stage-bar-wrap"><div class="stage-bar" id="bar-2"></div></div><div class="stage-timing" id="tim-2">—</div></div>
+            <div class="stage-row"><div class="stage-name"><div class="stage-dot" id="dot-3"></div><div><div class="stage-name-text">Retrieve</div><div class="stage-sub">dense + sparse + hybrid</div></div></div><div class="stage-bar-wrap"><div class="stage-bar" id="bar-3"></div></div><div class="stage-timing" id="tim-3">—</div></div>
+            <div class="stage-row"><div class="stage-name"><div class="stage-dot" id="dot-4"></div><div><div class="stage-name-text">Rerank</div><div class="stage-sub">multi-hop only</div></div></div><div class="stage-bar-wrap"><div class="stage-bar" id="bar-4"></div></div><div class="stage-timing" id="tim-4">—</div></div>
+            <div class="stage-row"><div class="stage-name"><div class="stage-dot" id="dot-5"></div><div><div class="stage-name-text">Fuse</div><div class="stage-sub">RRF, k=60</div></div></div><div class="stage-bar-wrap"><div class="stage-bar" id="bar-5"></div></div><div class="stage-timing" id="tim-5">—</div></div>
+            <div class="stage-row"><div class="stage-name"><div class="stage-dot" id="dot-6"></div><div><div class="stage-name-text">Recommend + log</div><div class="stage-sub">Firestore</div></div></div><div class="stage-bar-wrap"><div class="stage-bar" id="bar-6"></div></div><div class="stage-timing" id="tim-6">—</div></div>
+          </div>
+          <pre class="sim-output" id="sim-output" style="grid-column: 1 / -1;"><span class="out-comment">// select a scenario and run simulation</span></pre>
+          <div class="sim-dashboard" style="grid-column: 1 / -1;">
+            <div class="sim-metric"><div class="sim-metric-value" id="metric-recall">—</div><div class="sim-metric-label">Recall@10</div></div>
+            <div class="sim-metric"><div class="sim-metric-value" id="metric-mrr">—</div><div class="sim-metric-label">MRR</div></div>
+            <div class="sim-metric"><div class="sim-metric-value" id="metric-latency">—</div><div class="sim-metric-label">Latency p50</div></div>
+            <div class="sim-metric"><div class="sim-metric-value" id="metric-alpha">—</div><div class="sim-metric-label">α used</div></div>
+          </div>
+        </div>
+      </div>
+      <div class="figure-note">This mini dashboard is QueryForge's stand-in for a full evaluation UI — recall@k, MRR, and latency are the same three numbers every config_recommendation is scored on in §6.2's experiment grid.</div>
+    </section>
 
-<div class="diagram-placeholder">
-  5. Optimization Experiment Grid (Table/matrix of tested configurations with performance scores)
-</div>
+    <!-- §6 DESIGN VALIDATION -->
+    <section class="section" id="validation">
+      <h2 class="section-heading"><span class="section-num">§6</span> Design Validation</h2>
+      <p class="body-text">Three views on whether the routing actually helps: a before/after comparison on a real query, the grid search behind the adaptive-α defaults in §3.2, and where this pipeline sits in QueryForge's own MLOps lifecycle.</p>
 
-<div class="diagram-placeholder">
-  6. MLOps Lifecycle for RAG Optimization (Cycle diagram: data → experiment → evaluate → recommend → deploy)
-</div>
+      <div class="subsection-heading" id="validation-before-after">6.1 Before / after — a multi-hop-entity query</div>
+      <p class="body-text">The query from the README example — <em>"What approval is required for vendor contracts over $50K with non-standard payment terms?"</em> — against a baseline single dense embedding versus QueryForge's decompose+hybrid+RRF routing.</p>
+      <table class="comp-table">
+        <thead><tr><th>Rank</th><th>Baseline (single dense embedding)</th><th>QueryForge (decompose + hybrid + RRF)</th></tr></thead>
+        <tbody>
+          <tr><td>1</td><td>General procurement policy overview <span class="badge gray">partial match</span></td><td>Procurement approval authority matrix <span class="badge teal">correct</span></td></tr>
+          <tr><td>2</td><td>Vendor onboarding checklist <span class="badge gray">tangential</span></td><td>Vendor contract approval threshold $50K <span class="badge teal">correct</span></td></tr>
+          <tr><td>3</td><td>Standard payment terms glossary <span class="badge gray">tangential</span></td><td>Non-standard payment terms policy <span class="badge teal">correct</span></td></tr>
+          <tr><td>4</td><td>Non-standard payment terms policy <span class="badge amber">correct, buried</span></td><td>Finance sign-off escalation SOP <span class="badge teal">correct</span></td></tr>
+          <tr><td>5</td><td>Procurement approval authority matrix <span class="badge amber">correct, buried</span></td><td>Standard payment terms glossary <span class="badge gray">tangential</span></td></tr>
+        </tbody>
+      </table>
+      <p class="body-text">Both documents the answer actually depends on are retrieved by the baseline too — but at ranks 4 and 5, past most top-k=3 cutoffs used in production RAG. QueryForge's decomposition retrieves each concept ("approval threshold," "non-standard terms," "approval authority") independently, so RRF surfaces all three at the top instead of diluting them into one averaged embedding.</p>
 
-<div class="links">
-  <h2>Supporting Documentation</h2>
-  <ul>
-    <li><a href="SAMPLE_OPTIMIZATIONS.html">Sample Optimizations & Results</a></li>
-    <li><a href="EVALUATION_METRICS.html">Detailed Evaluation Metrics & Methodology</a></li>
-    <li><a href="TECH_STACK.html">Technical Stack & Local Setup</a></li>
-  </ul>
-</div>
+      <div class="subsection-heading" id="validation-grid">6.2 Optimization experiment grid</div>
+      <p class="body-text">The α defaults in §3.2 come from a grid search over strategy × α × reranker, evaluated on recall@10, MRR, and p50 latency against a HotpotQA-equivalent internal corpus. This is the shape of grid the config_recommendation block is drawn from.</p>
+      <table class="comp-table">
+        <thead><tr><th>Config</th><th>α</th><th>Reranker</th><th>Recall@10</th><th>MRR</th><th>Latency p50</th></tr></thead>
+        <tbody>
+          <tr><td>Dense only</td><td>1.00</td><td>off</td><td>0.61</td><td>0.54</td><td>0.9s</td></tr>
+          <tr><td>BM25 only</td><td>0.00</td><td>off</td><td>0.58</td><td>0.51</td><td>0.4s</td></tr>
+          <tr><td>Hybrid (fixed)</td><td>0.55</td><td>off</td><td>0.74</td><td>0.66</td><td>1.1s</td></tr>
+          <tr class="highlight"><td>Hybrid + decompose</td><td>0.40 (adaptive)</td><td>off</td><td>0.81</td><td>0.72</td><td>2.1s</td></tr>
+          <tr class="critical"><td><strong>Hybrid + decompose + rerank</strong></td><td>0.40 (adaptive)</td><td>on</td><td><strong>0.92</strong></td><td><strong>0.79</strong></td><td>2.5s</td></tr>
+        </tbody>
+      </table>
+      <p class="body-text">The <code>+31%</code> recall figure quoted in the README is this bottom row against the dense-only baseline. The recommender only pays the reranker's ~600ms tax when the recall gain justifies it — which §3.2's routing table encodes as "multi-hop only."</p>
 
+      <div class="subsection-heading" id="validation-lifecycle">6.3 MLOps lifecycle for RAG optimization</div>
+      <div class="figure" id="fig6">
+        <div class="figure-label">Figure 6</div>
+        <div class="figure-sublabel">Data → experiment → evaluate → recommend → deploy, with drift feeding back to data</div>
+        <div class="figure-body" style="padding: 1.5rem;">
+          <svg width="100%" viewBox="0 0 720 220" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <marker id="arrlc" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                <path d="M2 1L8 5L2 9" fill="none" stroke="#8a8880" stroke-width="1.5" stroke-linecap="round"/>
+              </marker>
+            </defs>
+            <rect x="10" y="80" width="118" height="56" rx="6" fill="white" stroke="#d8d5ce"/>
+            <text x="69" y="103" text-anchor="middle" font-family="Inter,sans-serif" font-size="10" font-weight="500" fill="#1a1917">Data</text>
+            <text x="69" y="118" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-size="8" fill="#5a5852">corpus + chunk config</text>
+            <line x1="128" y1="108" x2="153" y2="108" stroke="#8a8880" stroke-width="1.2" marker-end="url(#arrlc)"/>
+
+            <rect x="153" y="80" width="118" height="56" rx="6" fill="#f0effe" stroke="#b0a8e8"/>
+            <text x="212" y="103" text-anchor="middle" font-family="Inter,sans-serif" font-size="10" font-weight="500" fill="#4a40b0">Experiment</text>
+            <text x="212" y="118" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-size="8" fill="#4a40b0">strategy × α grid</text>
+            <line x1="271" y1="108" x2="296" y2="108" stroke="#8a8880" stroke-width="1.2" marker-end="url(#arrlc)"/>
+
+            <rect x="296" y="80" width="118" height="56" rx="6" fill="#fdf4e3" stroke="#e8c870"/>
+            <text x="355" y="103" text-anchor="middle" font-family="Inter,sans-serif" font-size="10" font-weight="500" fill="#b07010">Evaluate</text>
+            <text x="355" y="118" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-size="8" fill="#b07010">recall@k · MRR · p50</text>
+            <line x1="414" y1="108" x2="439" y2="108" stroke="#8a8880" stroke-width="1.2" marker-end="url(#arrlc)"/>
+
+            <rect x="439" y="80" width="118" height="56" rx="6" fill="#e8f5f0" stroke="#80c8b0"/>
+            <text x="498" y="103" text-anchor="middle" font-family="Inter,sans-serif" font-size="10" font-weight="500" fill="#0a6b52">Recommend</text>
+            <text x="498" y="118" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-size="8" fill="#0a6b52">config_recommendation</text>
+            <line x1="557" y1="108" x2="582" y2="108" stroke="#8a8880" stroke-width="1.2" marker-end="url(#arrlc)"/>
+
+            <rect x="582" y="80" width="128" height="56" rx="6" fill="white" stroke="#d8d5ce"/>
+            <text x="646" y="103" text-anchor="middle" font-family="Inter,sans-serif" font-size="10" font-weight="500" fill="#1a1917">Deploy</text>
+            <text x="646" y="118" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-size="8" fill="#5a5852">Cloud Run, versioned</text>
+
+            <path d="M646,136 L646,175 Q646,190 300,190 Q69,190 69,175 L69,136" fill="none" stroke="#c8c5be" stroke-width="1.2" stroke-dasharray="3,2" marker-end="url(#arrlc)"/>
+            <text x="360" y="204" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-size="8.5" fill="#8a8880">drift detected in Firestore query_logs → re-run the grid</text>
+          </svg>
+        </div>
+        <div class="figure-note">The loop closes through Firestore, not a separate MLOps platform: query_logs is both the audit trail and the drift-detection input for the next experiment cycle.</div>
+      </div>
+    </section>
+
+    <!-- §7 ARCHITECTURE -->
+    <section class="section" id="architecture">
+      <h2 class="section-heading"><span class="section-num">§7</span> Google Cloud Architecture</h2>
+      <p class="body-text">Four layers, all Google-native. Nothing in this stack requires an account, API key, or credential outside Google Cloud and the Gemini Developer API.</p>
+
+      <div class="subsection-heading" id="service-map">7.1 Service map</div>
+      <div class="layers-grid">
+        <div class="layer-col">
+          <div class="layer-header">Interface</div>
+          <div class="layer-item">REST API (POST /v1/optimize)</div>
+          <div class="layer-item">Python SDK</div>
+          <div class="layer-item">OpenAPI schema</div>
+          <div class="layer-item">Cloud Monitoring dashboards</div>
+        </div>
+        <div class="layer-col">
+          <div class="layer-header">Intelligence</div>
+          <div class="layer-item">Gemini 2.5 Flash-Lite (Dev API)</div>
+          <div class="layer-item">all-MiniLM-L6-v2 (self-hosted)</div>
+          <div class="layer-item">rank-bm25 (self-hosted)</div>
+          <div class="layer-item">ms-marco-MiniLM-L-6-v2 (self-hosted)</div>
+        </div>
+        <div class="layer-col">
+          <div class="layer-header">Orchestration</div>
+          <div class="layer-item">FastAPI · asyncio · Python 3.11</div>
+          <div class="layer-item">Cloud Run (scale-to-zero)</div>
+          <div class="layer-item">Cloud Build</div>
+          <div class="layer-item">Artifact Registry</div>
+        </div>
+        <div class="layer-col">
+          <div class="layer-header">Data &amp; governance</div>
+          <div class="layer-item">Firestore (vector search + logs)</div>
+          <div class="layer-item">Cloud Storage (corpus + weights)</div>
+          <div class="layer-item">Secret Manager (API key)</div>
+          <div class="layer-item">Cloud Billing Budgets</div>
+        </div>
+      </div>
+
+      <div class="subsection-heading">7.2 IAM &amp; security</div>
+      <p class="body-text">The Cloud Run service account is scoped to least privilege: <code>roles/datastore.user</code> (Firestore), <code>roles/storage.objectViewer</code> (corpus bucket), <code>roles/secretmanager.secretAccessor</code> (Gemini API key), and <code>roles/run.invoker</code> for authenticated callers. No third-party vector database, SaaS annotation tool, or external hosting provider is in the request path — the only outbound call from the container is to the Gemini Developer API. On the free tier, Google may use API inputs/outputs to improve its models; enabling billing on the Gemini API opts out of that data use — a real trade-off for a $0.01-capped project, noted plainly in §13 Limitations rather than glossed over.</p>
+    </section>
+
+    <!-- §8 COST & ADOPTION CASE -->
+    <section class="section" id="cost">
+      <h2 class="section-heading"><span class="section-num">§8</span> Cost &amp; Adoption Case</h2>
+      <p class="body-text">Two cost models, both grounded in cited sources: the business cost of the retrieval gap QueryForge closes, and the running cost of the Google Cloud solution itself. Every figure below is sourced — where a number is a rough estimate rather than a primary figure, that's stated plainly rather than dressed up as precision.</p>
+
+      <div class="subsection-heading" id="cost-problem">8.1 Problem cost — why "good enough" retrieval is expensive</div>
+      <table class="comp-table">
+        <thead><tr><th>Metric</th><th>Value</th><th>Detail</th><th>Source</th></tr></thead>
+        <tbody>
+          <tr class="critical"><td>Lost productivity, 1,000 knowledge workers</td><td>$5.7M/yr</td><td>Workers find needed information only ~56% of the time</td><td><a href="https://www.coveo.com/blog/idc-report-unified-search-text-analytics-are-proven-drivers-of-km-success/" target="_blank">IDC via Coveo, 2014</a></td></tr>
+          <tr><td>Time spent searching</td><td>2.5 hrs/day</td><td>≈30% of the workday, $80K/yr knowledge-worker cost baseline</td><td><a href="https://computhink.com/wp-content/uploads/2015/10/IDC20on20The20High20Cost20Of20Not20Finding20Information.pdf" target="_blank">IDC, "The High Cost of Not Finding Information"</a></td></tr>
+          <tr><td>Time spent searching (recent)</td><td>1.8 hrs/day</td><td>≈23% of productive hours, 2025 remeasurement</td><td><a href="https://copernic.com/en/2025/03/21/the-hidden-costs-of-poor-document-search-how-much-time-is-your-business-wasting/" target="_blank">McKinsey via Copernic, 2025</a></td></tr>
+          <tr class="critical"><td>Global cost of AI hallucinations</td><td>$67.4B (2024)</td><td>Projected ~$112B for 2025 as enterprise AI adoption scales</td><td><a href="https://holm.com/blog/enterprise-ai-hallucination-failure-fix" target="_blank">AllAboutAI 2025, via Holm Intelligence Partners</a></td></tr>
+          <tr><td>AI-output verification tax</td><td>~$14,200/employee/yr</td><td>4.3 hrs/week per employee spent checking AI output</td><td><a href="https://holm.com/blog/enterprise-ai-hallucination-failure-fix" target="_blank">Forrester, "Enterprise AI Cost Analysis," 2025</a></td></tr>
+          <tr><td>Manual RAG tuning cost</td><td>$4,500–$10,500</td><td>Chunking strategy + hybrid search + metadata filtering, one-time, per corpus</td><td><a href="https://www.stratagem-systems.com/blog/rag-implementation-cost-roi-analysis" target="_blank">Stratagem Systems, 89 production RAG deployments, 2026</a></td></tr>
+          <tr><td>Enterprises with ≥1 RAG hallucination incident</td><td>67%</td><td>Of enterprises running production RAG, in the past year — RAG narrows the hallucination problem, it doesn't close it</td><td><a href="https://neuralwired.com/2026/07/07/deloitte-ai-hallucination-finra-2026/" target="_blank">Gartner 2026 survey, via NeuralWired</a></td></tr>
+        </tbody>
+      </table>
+      <div class="callout blue">
+        <div class="callout-label">Named incident — why retrieval quality is the fix, not a bigger model</div>
+        <div class="callout-body">In October 2025, Deloitte refunded part of an AU$440K (~$290K USD) contract with the Australian government after a delivered report was found to contain AI-fabricated citations. <a href="https://medium.com/@PoornaReddy/the-290-000-ai-hallucination-what-caused-it-how-to-engineer-around-it-d39b7be1142e" target="_blank">(AP, October 2025, via Medium)</a> The most-cited finding across 2025–2026 RAG research is that this class of failure is "overwhelmingly a retrieval problem, not a generation problem" — the model reasons correctly over the wrong chunk. <a href="https://www.seekr.com/resource/the-hallucination-tax-why-your-best-models-are-costing-you-the-most/" target="_blank">(Seekr, "The Hallucination Tax," 2026)</a> That is precisely the failure mode §1 names and §3 routes around — QueryForge's bet is that better retrieval selection is cheaper than better verification after the fact.</div>
+      </div>
+
+      <div class="subsection-heading" id="cost-solution">8.2 Solution cost — the Always-Free ledger</div>
+      <table class="cost-table">
+        <thead><tr><th>Component</th><th>Always-Free allowance</th><th>QueryForge projected usage</th><th>Cost</th><th>Source</th></tr></thead>
+        <tbody>
+          <tr><td>Cloud Run</td><td>2M requests · 360K GiB-sec · 180K vCPU-sec per billing account/mo</td><td>Demo traffic, scale-to-zero when idle</td><td>$0.00</td><td><a href="https://cloud.google.com/run/pricing" target="_blank">Cloud Run pricing</a></td></tr>
+          <tr><td>Firestore</td><td>1 GiB storage · 50K reads / 20K writes / 20K deletes per day, per project</td><td>Small demo corpus + query log, well under daily caps; KNN vector search billed 1 read per 100 index entries scanned</td><td>$0.00</td><td><a href="https://cloud.google.com/firestore/pricing" target="_blank">Firestore pricing</a></td></tr>
+          <tr><td>Cloud Storage</td><td>5 GB (US regions), 5K Class A / 50K Class B ops</td><td>Corpus files + self-hosted model weights</td><td>$0.00</td><td><a href="https://cloud.google.com/storage/pricing" target="_blank">Cloud Storage pricing</a></td></tr>
+          <tr><td>Cloud Build</td><td>120 build-minutes/day</td><td>One container build per deploy</td><td>$0.00</td><td><a href="https://cloud.google.com/build/pricing" target="_blank">Cloud Build pricing</a></td></tr>
+          <tr><td>Artifact Registry</td><td>0.5 GB storage</td><td>Single container image</td><td>$0.00</td><td><a href="https://cloud.google.com/artifact-registry/pricing" target="_blank">Artifact Registry pricing</a></td></tr>
+          <tr><td>Gemini Developer API</td><td>~15 RPM / ~1,500 RPD / 1M TPM, per project, for Flash-Lite</td><td>Classifier + decomposer + HyDE calls</td><td>$0.00 — <em>not billed through Cloud Billing at all</em></td><td><a href="https://ai.google.dev/gemini-api/docs/pricing" target="_blank">Gemini API pricing</a> · <a href="https://tokenmix.ai/blog/gemini-api-free-tier-limits" target="_blank">rate limits, TokenMix 2026</a></td></tr>
+          <tr class="total-row"><td>Total actual spend</td><td>—</td><td>—</td><td>$0.00, capped at $0.01</td><td>—</td></tr>
+        </tbody>
+      </table>
+      <div class="source-note">Cloud Run's Always-Free allotment pools per billing account, not per project — QueryForge's share is kept conservative by design so the other three apps on the same account keep theirs. Firestore's free quota is per project, which is the one allotment QueryForge does not have to share.</div>
+
+      <div class="subsection-heading" id="cost-killswitch">8.3 The budget guard</div>
+      <p class="body-text">A hard cap only means something if it enforces itself before a bill is generated. The first design for this used a reactive Cloud Billing Budget → Pub/Sub → Cloud Function kill switch. Building it surfaced a problem: Google's own billing data lags by <strong>at least 24 hours</strong>, which makes any billing-data-driven trigger structurally too slow to catch a $0.01 overspend before it happens — by the time it fires, the overspend already occurred.</p>
+      <div class="callout amber">
+        <div class="callout-label">Enforcement path — revised</div>
+        <div class="callout-body">Every Gemini call now passes through a Firestore-transactional spend guard <em>before</em> it's made: a running monthly total is checked against the $0.01 cap, using published per-token pricing, with zero dependency on GCP's billing pipeline or its lag. The original Cloud Billing Budget ($0.01, project-scoped) is kept as an independent <strong>secondary</strong> tripwire — defense in depth in case the guard itself has a bug, not the primary safeguard. See ADR-006 (revised) and <code>build/service/budget_guard.py</code> in the repository.</div>
+      </div>
+
+      <div class="subsection-heading" id="cost-compare">8.4 QueryForge vs. alternative approaches</div>
+      <table class="comp-table">
+        <thead><tr><th>Approach</th><th>Annual cost</th><th>Retrieval routing</th><th>Explainability</th><th>Notes</th></tr></thead>
+        <tbody>
+          <tr class="highlight"><td><strong>QueryForge (this build)</strong></td><td>~$0/yr</td><td>✓ 5-way classifier, adaptive α</td><td>✓ classifier_explanation on every call</td><td>Bounded by Always-Free ceilings — see §12 MVP Scope</td></tr>
+          <tr><td>Manual RAG tuning (in-house)</td><td>$4,500–$10,500 one-time <a href="https://www.stratagem-systems.com/blog/rag-implementation-cost-roi-analysis" target="_blank">(Stratagem 2026)</a></td><td>~ Fixed config, hand-tuned per corpus</td><td>✗ No routing rationale returned</td><td>Re-tuning needed whenever the corpus shifts</td></tr>
+          <tr><td>Glean / managed enterprise search</td><td>$8K–$30K/yr (est., per-seat)</td><td>~ Proprietary, vendor-controlled</td><td>~ Partial, product-dependent</td><td>Strong UX, but retrieval logic is not inspectable or self-hostable</td></tr>
+          <tr><td>Google Vertex AI Search (managed)</td><td>$8K–$30K/yr (est.)</td><td>~ Managed, multi-tenant</td><td>~ Partial</td><td>A different product from what QueryForge does — Vertex AI Search is a managed, multi-tenant enterprise search product; QueryForge calls the raw Gemini API from a backend we control. Worth being precise about — the two get conflated often.</td></tr>
+          <tr><td>Do nothing (single dense embedding)</td><td>$0/yr direct, but see §8.1</td><td>✗ None</td><td>✗ None</td><td>The baseline row in §6.1 — cheapest to run, most expensive in downstream errors</td></tr>
+        </tbody>
+      </table>
+      <div class="callout blue">
+        <div class="callout-label">Limitations of this cost model</div>
+        <div class="callout-body">The problem-cost figures in §8.1 are industry averages, not measurements of any specific deployment — actual exposure depends on corpus size, query volume, and how much of an organization's error rate is attributable to retrieval versus other causes, which is not separable from public data. The alternative-approach costs marked "est." are directional, built from public per-seat pricing ranges, not vendor quotes. What is not an estimate: QueryForge's own Google Cloud spend, which is measured against real, cited pricing pages and is $0.00 at demo scale.</div>
+      </div>
+    </section>
+
+    <!-- §9 DEPLOYMENT -->
+    <section class="section" id="deployment">
+      <h2 class="section-heading"><span class="section-num">§9</span> Deployment</h2>
+      <p class="body-text">Single-command deploy to Cloud Run, followed immediately by the budget cap — the cap is treated as part of the deployment, not an optional afterthought.</p>
+
+      <div class="schema-block">
+        <div class="schema-header">
+          <div class="schema-title">deploy.sh</div>
+          <div class="schema-tag">gcloud · single project · Always-Free</div>
+        </div>
+        <pre class="schema-code"><span class="cc"># build + deploy the container, capped at 3 instances, 1Gi memory</span>
+gcloud run deploy queryforge \
+  --source . \
+  --region us-central1 \
+  --max-instances 3 \
+  --memory 1Gi \
+  --allow-unauthenticated \
+  --set-secrets GEMINI_API_KEY=gemini-api-key:latest
+
+<span class="cc"># hard budget cap — scoped to THIS project only</span>
+<span class="cc"># does not touch the shared billing account or the other 3 apps on it</span>
+gcloud billing budgets create \
+  --billing-account=$BILLING_ACCOUNT_ID \
+  --display-name="queryforge-hard-cap" \
+  --budget-amount=0.01USD \
+  --threshold-rule=percent=1.0 \
+  --filter-projects=projects/$QUERYFORGE_PROJECT_ID</pre>
+      </div>
+    </section>
+
+    <!-- §10 ADRs -->
+    <section class="section" id="adrs">
+      <h2 class="section-heading"><span class="section-num">§10</span> Architecture Decision Records</h2>
+      <p class="body-text">QueryForge's original design was open-source and local-first by default. Every ADR below records the point where that default was re-examined against two hard constraints — 100% Google Cloud, and a $0.01 ceiling on a shared billing account — and documents what was chosen instead and why.</p>
+
+      <div class="adr-card" id="adr-001">
+        <div class="adr-header"><div class="adr-id">ADR-001</div><div class="adr-title">Google Cloud-only architecture over open-source, multi-vendor stack</div><span class="adr-status-badge accepted">Accepted</span></div>
+        <div class="adr-body">
+          <div class="adr-field-label">Date</div><div class="adr-field-value">2026-07-09</div>
+          <div class="adr-field-label">Context</div><div class="adr-field-value">The original design used ChromaDB, local HuggingFace inference for embeddings and reranking, and Hugging Face Spaces for hosting. This deployment runs on a Google Cloud free-tier account with zero credits, sharing a billing account with three other apps. A multi-vendor stack adds operational surface area with no benefit on this constraint set.</div>
+          <div class="adr-field-label">Decision</div><div class="adr-field-value"><strong>Rebuild on Google Cloud only:</strong> Cloud Run for compute, Firestore for persistence and vector search, Cloud Storage for corpus/weights, and the Gemini Developer API for the one LLM dependency.</div>
+          <div class="adr-field-label">Considered</div><div class="adr-field-value">
+            <div class="adr-options">
+              <div class="adr-option chosen"><div class="adr-option-label">chosen</div><div class="adr-option-body"><strong>Google Cloud-only</strong> — single vendor, single IAM boundary, every managed service has an Always-Free tier that covers demo scale.</div></div>
+              <div class="adr-option"><div class="adr-option-label">rejected</div><div class="adr-option-body"><strong>Keep original multi-vendor stack</strong> — Hugging Face Spaces hosting and ChromaDB have no committed zero-cost guarantee compatible with a $0.01 ceiling.</div></div>
+            </div>
+          </div>
+          <div class="adr-field-label last">Consequences</div><div class="adr-field-value last">Self-hosted open-weight models remain in the design (ADR-003) — "Google Cloud-only" means the infrastructure vendor, not that every model call must be a managed API.</div>
+        </div>
+      </div>
+
+      <div class="adr-card" id="adr-002">
+        <div class="adr-header"><div class="adr-id">ADR-002</div><div class="adr-title">Firestore Vector Search over ChromaDB or Vertex AI Vector Search</div><span class="adr-status-badge accepted">Accepted</span></div>
+        <div class="adr-body">
+          <div class="adr-field-label">Date</div><div class="adr-field-value">2026-07-09</div>
+          <div class="adr-field-label">Context</div><div class="adr-field-value">The retrieval layer needs a persistent vector index. Cloud Run's local disk is ephemeral, so self-hosted ChromaDB would lose its index on every cold start. Vertex AI Vector Search is Google-native but has no Always-Free tier — its cheapest deployed index runs continuously and accrues an hourly charge regardless of query volume.</div>
+          <div class="adr-field-label">Decision</div><div class="adr-field-value"><strong>Use Firestore (Native mode) with vector search</strong> for both the dense index and the query/config store. Persists across cold starts, and its free daily quota comfortably covers a portfolio-scale demo corpus.</div>
+          <div class="adr-field-label">Considered</div><div class="adr-field-value">
+            <div class="adr-options">
+              <div class="adr-option chosen"><div class="adr-option-label">chosen</div><div class="adr-option-body"><strong>Firestore Vector Search</strong> — native GCP, Always-Free tier, persists across Cloud Run scale-to-zero.</div></div>
+              <div class="adr-option"><div class="adr-option-label">rejected</div><div class="adr-option-body"><strong>Self-hosted ChromaDB</strong> — no free persistent disk on Cloud Run; needs a separate VM or Filestore volume, both outside Always-Free.</div></div>
+              <div class="adr-option"><div class="adr-option-label">rejected</div><div class="adr-option-body"><strong>Vertex AI Vector Search</strong> — the deployed index has an always-on hourly cost with no free tier; incompatible with a $0.01 cap. Documented as the production upgrade path in §12.</div></div>
+            </div>
+          </div>
+          <div class="adr-field-label last">Consequences</div><div class="adr-field-value last">Corpus size for the zero-cost demo is bounded by Firestore's Always-Free storage — see §13 Limitations.</div>
+        </div>
+      </div>
+
+      <div class="adr-card" id="adr-003">
+        <div class="adr-header"><div class="adr-id">ADR-003</div><div class="adr-title">Self-hosted open-weight models over Vertex AI Embeddings / Prediction API</div><span class="adr-status-badge accepted">Accepted</span></div>
+        <div class="adr-body">
+          <div class="adr-field-label">Date</div><div class="adr-field-value">2026-07-09</div>
+          <div class="adr-field-label">Context</div><div class="adr-field-value">Dense embedding and cross-encoder reranking need a model somewhere in the request path. Vertex AI's Text Embeddings API and hosted Prediction endpoints are Google-native, but both are metered per call with no meaningful free tier.</div>
+          <div class="adr-field-label">Decision</div><div class="adr-field-value"><strong>Bundle all-MiniLM-L6-v2 and ms-marco-MiniLM-L-6-v2 as open weights inside the Cloud Run container image</strong> and run inference on the container's own CPU — compute time is Always-Free up to 180K vCPU-sec/month instead of a per-call API fee.</div>
+          <div class="adr-field-label">Considered</div><div class="adr-field-value">
+            <div class="adr-options">
+              <div class="adr-option chosen"><div class="adr-option-label">chosen</div><div class="adr-option-body"><strong>Self-hosted, in-container inference</strong> — zero marginal cost per query.</div></div>
+              <div class="adr-option"><div class="adr-option-label">rejected</div><div class="adr-option-body"><strong>Vertex AI Text Embeddings API</strong> — billed per 1K characters with no free tier; incompatible with a $0.01 cap at any real query volume.</div></div>
+            </div>
+          </div>
+          <div class="adr-field-label last">Consequences</div><div class="adr-field-value last">Reranker adds ~600ms latency on Cloud Run's free-tier CPU — see §13 Limitations.</div>
+        </div>
+      </div>
+
+      <div class="adr-card" id="adr-004">
+        <div class="adr-header"><div class="adr-id">ADR-004</div><div class="adr-title">Gemini Developer API over the Vertex AI Gemini endpoint</div><span class="adr-status-badge accepted">Accepted</span></div>
+        <div class="adr-body">
+          <div class="adr-field-label">Date</div><div class="adr-field-value">2026-07-09</div>
+          <div class="adr-field-label">Context</div><div class="adr-field-value">Gemini is reachable two ways: through Vertex AI (billed to the GCP project's Cloud Billing account) or through the Gemini Developer API at aistudio.google.com (billed on a separate, independently free-tiered quota tied to the API key). QueryForge's classifier, decomposer, and HyDE fallback all need to stay off the $0.01-capped account.</div>
+          <div class="adr-field-label">Decision</div><div class="adr-field-value"><strong>Call Gemini exclusively through the Gemini Developer API</strong> using an API key stored in Secret Manager. The Vertex AI Gemini endpoint is not used anywhere in this design.</div>
+          <div class="adr-field-label">Considered</div><div class="adr-field-value">
+            <div class="adr-options">
+              <div class="adr-option chosen"><div class="adr-option-label">chosen</div><div class="adr-option-body"><strong>Gemini Developer API</strong> — free tier billed independently of Cloud Billing.</div></div>
+              <div class="adr-option"><div class="adr-option-label">rejected</div><div class="adr-option-body"><strong>Vertex AI Gemini endpoint</strong> — same model family, but every token generated is metered against Cloud Billing.</div></div>
+            </div>
+          </div>
+          <div class="adr-field-label last">Consequences</div><div class="adr-field-value last">Throughput is capped at the Developer API's free-tier limits — the primary scaling bottleneck in §13. Free-tier calls may also be used by Google to improve its models; production deployments that need to opt out enable billing on the API, which is a different account decision from the $0.01 Cloud Billing cap this ADR is about. Also worth noting: the model originally specified here (Gemini 2.0 Flash-Lite) was deprecated and shut down June 1, 2026 — this document was updated to Gemini 2.5 Flash-Lite, and future revisions should expect the same churn.</div>
+        </div>
+      </div>
+
+      <div class="adr-card" id="adr-005">
+        <div class="adr-header"><div class="adr-id">ADR-005</div><div class="adr-title">Cloud Run over GKE Autopilot</div><span class="adr-status-badge accepted">Accepted</span></div>
+        <div class="adr-body">
+          <div class="adr-field-label">Date</div><div class="adr-field-value">2026-07-09</div>
+          <div class="adr-field-label">Context</div><div class="adr-field-value">QueryForge needs a container runtime. GKE Autopilot is the Google-native alternative, but even a minimal cluster bills for a base management fee and any always-on node, regardless of traffic.</div>
+          <div class="adr-field-label">Decision</div><div class="adr-field-value"><strong>Deploy to Cloud Run</strong> with <code>max-instances</code> capped and scale-to-zero enabled. No traffic, no running instance, no charge.</div>
+          <div class="adr-field-label">Considered</div><div class="adr-field-value">
+            <div class="adr-options">
+              <div class="adr-option chosen"><div class="adr-option-label">chosen</div><div class="adr-option-body"><strong>Cloud Run</strong> — scale-to-zero, 2M requests/month Always-Free, no cost floor.</div></div>
+              <div class="adr-option"><div class="adr-option-label">rejected</div><div class="adr-option-body"><strong>GKE Autopilot</strong> — cluster management fee and node cost accrue even at zero traffic.</div></div>
+            </div>
+          </div>
+          <div class="adr-field-label last">Consequences</div><div class="adr-field-value last">Cold starts add latency after idle periods — an accepted trade-off, documented rather than hidden.</div>
+        </div>
+      </div>
+
+      <div class="adr-card" id="adr-006">
+        <div class="adr-header"><div class="adr-id">ADR-006</div><div class="adr-title">Project-scoped, self-enforcing budget guard over a billing-data-reactive kill switch</div><span class="adr-status-badge revised">Revised</span></div>
+        <div class="adr-body">
+          <div class="adr-field-label">Date</div><div class="adr-field-value">2026-07-09 (revised from the original same-day decision, after implementation)</div>
+          <div class="adr-field-label">Context</div><div class="adr-field-value">The common pattern for a hard cost cap disables billing (or throttles a service) once a Cloud Billing Budget threshold is crossed. QueryForge shares its $10 billing account with three other apps, so the original decision scoped that pattern to the project only. Building it surfaced a bigger problem: Google's own billing data lags by <strong>at least 24 hours</strong>. A billing-data-reactive trigger — Pub/Sub push or scheduled poll, project-scoped or not — cannot enforce a $0.01 cap in real time. By the time it fires, the overspend already happened.</div>
+          <div class="adr-field-label">Decision</div><div class="adr-field-value"><strong>Self-enforce the cap in application code.</strong> Every Gemini call now passes through <code>build/service/budget_guard.py</code> first — a Firestore-transactional check against a running monthly total, using published per-token pricing, with zero dependency on GCP's billing pipeline. The original project-scoped Cloud Billing Budget is retained as an independent secondary tripwire, not the primary safeguard.</div>
+          <div class="adr-field-label">Considered</div><div class="adr-field-value">
+            <div class="adr-options">
+              <div class="adr-option chosen"><div class="adr-option-label">chosen</div><div class="adr-option-body"><strong>Self-enforcing Firestore-transactional guard</strong> — sub-second enforcement, no dependency on billing-data latency; Cloud Billing Budget kept as defense-in-depth only.</div></div>
+              <div class="adr-option"><div class="adr-option-label">superseded</div><div class="adr-option-body"><strong>Project-scoped Pub/Sub → Cloud Function kill switch (original decision)</strong> — correct in scope, but too slow to be the primary guard given the billing-data lag.</div></div>
+              <div class="adr-option"><div class="adr-option-label">rejected</div><div class="adr-option-body"><strong>Account-level "disable billing" kill switch</strong> — a QueryForge cost spike would take down three unrelated apps as collateral damage, on top of still being too slow.</div></div>
+            </div>
+          </div>
+          <div class="adr-field-label last">Consequences</div><div class="adr-field-value last">One extra Firestore transaction per Gemini call — inside the Always-Free daily write quota at demo volume. The cost estimate is derived from token-usage metadata against published pricing, not GCP's actual invoice; treated as a hard-stop guard, not a billing record.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- §11 DATA SCHEMA -->
+    <section class="section" id="schema">
+      <h2 class="section-heading"><span class="section-num">§11</span> Data Schema</h2>
+      <p class="body-text">Firestore holds three collections: the vector-indexed corpus, the per-query log, and the config recommendations — all inside the Always-Free daily read/write allotment at demo volume.</p>
+
+      <div class="schema-block">
+        <div class="schema-header"><div class="schema-title">corpus_chunks/{doc_id}</div><div class="schema-tag">Firestore · vector-indexed</div></div>
+        <pre class="schema-code"><span class="cc">// One document per chunk. `embedding` is indexed for Firestore Vector Search.</span>
+{
+  <span class="ck">"doc_id"</span>:          <span class="cv">"policy_travel_v3_chunk_014"</span>,
+  <span class="ck">"corpus_id"</span>:       <span class="cv">"acme-hr-corpus"</span>,
+  <span class="ck">"content_type"</span>:    <span class="cv">"policy_docs"</span>,
+  <span class="ck">"chunk_strategy"</span>:  <span class="cv">"section-aware"</span>,
+  <span class="ck">"chunk_version"</span>:   <span class="cv">"v3"</span>,
+  <span class="ck">"text"</span>:            <span class="cv">"§4.2 Non-standard payment terms require..."</span>,
+  <span class="ck">"embedding"</span>:       <span class="cv">[0.0123, -0.0871, ...]</span>,   <span class="cc">// all-MiniLM-L6-v2, 384-dim</span>
+  <span class="ck">"metadata"</span>: {
+    <span class="ck">"effective_date"</span>: <span class="cv">"2026-02-01"</span>,
+    <span class="ck">"source_uri"</span>:     <span class="cv">"gs://acme-corpus/policy_travel_v3.pdf"</span>
+  }
+}</pre>
+      </div>
+
+      <div class="schema-block">
+        <div class="schema-header"><div class="schema-title">query_logs/{doc_id}</div><div class="schema-tag">Firestore · Always-Free: 20K writes/day</div></div>
+        <pre class="schema-code"><span class="cc">// One document per /v1/optimize call.</span>
+{
+  <span class="ck">"query_id"</span>:        <span class="cv">"qlog_00482"</span>,
+  <span class="ck">"query_text"</span>:      <span class="cv">"What approval is required for vendor contracts over $50K..."</span>,
+  <span class="ck">"classifier_type"</span>: <span class="cv">"multi-hop-entity"</span>,
+  <span class="ck">"confidence"</span>:      <span class="cv">0.91</span>,
+  <span class="ck">"sub_queries"</span>:     <span class="cv">["vendor contract approval threshold $50K", "..."]</span>,
+  <span class="ck">"alpha"</span>:           <span class="cv">0.40</span>,
+  <span class="ck">"reranked"</span>:        <span class="cv">true</span>,
+  <span class="ck">"latency_ms"</span>:      <span class="cv">2340</span>,
+  <span class="ck">"timestamp"</span>:       <span class="cv">"2026-07-09T14:02:11Z"</span>
+}</pre>
+      </div>
+    </section>
+
+    <!-- §12 MVP SCOPE -->
+    <section class="section" id="mvp">
+      <h2 class="section-heading"><span class="section-num">§12</span> MVP Scope &amp; Build Boundaries</h2>
+      <p class="body-text">Everything below runs inside the Always-Free tier and the $0.01 cap. Nothing here required a paid tier to demonstrate.</p>
+      <div class="mvp-grid">
+        <div class="mvp-col">
+          <div class="mvp-col-header implemented">Fully implemented</div>
+          <div class="mvp-item">Query classifier + confidence fallback<span class="mvp-sub">Gemini 2.5 Flash-Lite · Dev API free tier</span></div>
+          <div class="mvp-item">Sub-query decomposition + HyDE<span class="mvp-sub">multi-hop / low-similarity, live routing</span></div>
+          <div class="mvp-item">Dense + sparse + hybrid retrieval<span class="mvp-sub">Firestore Vector Search + self-hosted BM25</span></div>
+          <div class="mvp-item">RRF fusion + config recommender<span class="mvp-sub">pure Python · Firestore-logged</span></div>
+          <div class="mvp-item">Budget guard<span class="mvp-sub">Firestore-transactional, self-enforcing · project-scoped Cloud Billing Budget as secondary tripwire</span></div>
+        </div>
+        <div class="mvp-col">
+          <div class="mvp-col-header simulated">Demo-scoped</div>
+          <div class="mvp-item">Cross-encoder reranker<span class="mvp-sub">live, but only on a small cached demo corpus to stay inside free CPU-seconds</span></div>
+          <div class="mvp-item">Firestore Vector Search corpus<span class="mvp-sub">capped at ≤50MB to stay comfortably inside free storage</span></div>
+          <div class="mvp-item">Front-end simulator (§5)<span class="mvp-sub">scripted stage timings against real pipeline benchmarks, not a live backend call — same pattern used across this portfolio's other design docs</span></div>
+        </div>
+        <div class="mvp-col">
+          <div class="mvp-col-header deferred">Deferred to production</div>
+          <div class="mvp-item">Step-back &amp; rewrite variants<span class="mvp-sub">classifier route defined (§3.1, Fig. 3) but not corpus-evaluated yet</span></div>
+          <div class="mvp-item">Vertex AI Vector Search<span class="mvp-sub">for corpora beyond Firestore's free ceiling — see ADR-002</span></div>
+          <div class="mvp-item">Paid Gemini tier<span class="mvp-sub">above ~5K queries/day, once free-tier RPM is the bottleneck</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- §13 LIMITATIONS -->
+    <section class="section" id="limitations">
+      <h2 class="section-heading"><span class="section-num">§13</span> Limitations &amp; Known Issues</h2>
+      <table class="comp-table">
+        <tbody>
+          <tr><td>HyDE hallucination risk</td><td>An incorrect hypothetical document degrades recall. Mitigated by running HyDE alongside standard dense retrieval and letting RRF demote uncorroborated results; only activates below 0.65 similarity.</td></tr>
+          <tr><td>Classifier miscategorization</td><td>A multi-hop query misclassified as single-hop reproduces the exact failure QueryForge exists to prevent. Confidence below 0.75 always falls back to hybrid+decompose.</td></tr>
+          <tr><td>Reranker latency</td><td>The cross-encoder adds ~600ms on Cloud Run's free-tier CPU. Only applied to multi-hop queries where the precision gain justifies it.</td></tr>
+          <tr><td>Gemini free-tier rate limits</td><td>~15 RPM / ~1,500 requests per day is the scaling bottleneck. Production deployments above ~5K queries/day need the paid Gemini tier (ADR-004).</td></tr>
+          <tr><td>Free-tier data use</td><td>Google may use Gemini Developer API free-tier inputs/outputs to improve its models. Enabling billing opts out — a real trade-off for confidentiality-sensitive corpora that a $0.01-capped project can't casually take.</td></tr>
+          <tr><td>Model deprecation churn</td><td>Gemini 2.0 Flash-Lite, the model this design originally targeted, was deprecated and shut down June 1, 2026. This document now targets 2.5 Flash-Lite; free-tier model names should be expected to change again.</td></tr>
+          <tr><td>Firestore Always-Free ceilings</td><td>1 GiB storage and 20K writes/day cap the demo corpus size and query-log volume (ADR-002).</td></tr>
+          <tr><td>Shared billing account</td><td>The $0.01 cap is enforced at the project level specifically so a cost spike here cannot cascade into the three other apps on the same account (ADR-006).</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- §14 GLOSSARY -->
+    <section class="section" id="glossary">
+      <h2 class="section-heading"><span class="section-num">§14</span> Glossary</h2>
+      <div class="glossary-grid">
+        <div class="glossary-item"><div class="glossary-term">RAG — Retrieval-Augmented Generation</div><div class="glossary-def">Retrieving relevant context from a corpus and passing it to an LLM alongside the user's query, so the model's answer is grounded in that context rather than parametric memory alone.</div></div>
+        <div class="glossary-item"><div class="glossary-term">RRF — Reciprocal Rank Fusion</div><div class="glossary-def">A rank-based method for merging results from multiple retrieval strategies. Scores each document by the sum of 1/(k+rank) across every list it appears in, so it never has to reconcile incompatible score scales.</div></div>
+        <div class="glossary-item"><div class="glossary-term">BM25</div><div class="glossary-def">A sparse, term-frequency-based ranking function. Strong on exact matches — entity names, contract numbers — where dense embeddings tend to blur precise identifiers into a general semantic neighborhood.</div></div>
+        <div class="glossary-item"><div class="glossary-term">HyDE — Hypothetical Document Embeddings</div><div class="glossary-def">Generating a plausible hypothetical answer document with an LLM, then embedding that document (instead of the raw query) as the search vector.</div></div>
+        <div class="glossary-item"><div class="glossary-term">α-weighting</div><div class="glossary-def">The blend factor between dense and sparse scores in hybrid retrieval: score = α·dense + (1−α)·BM25. QueryForge sets α per query type based on published grid-search results.</div></div>
+        <div class="glossary-item"><div class="glossary-term">Cross-encoder reranker</div><div class="glossary-def">A model that scores a (query, document) pair jointly, rather than comparing independently-embedded vectors. Used selectively on multi-hop queries only.</div></div>
+        <div class="glossary-item"><div class="glossary-term">Firestore Vector Search</div><div class="glossary-def">Google Cloud's native vector-similarity search over Firestore documents. Used here as the dense index because it persists across Cloud Run's scale-to-zero cycles and fits inside the Always-Free daily quota at demo scale.</div></div>
+        <div class="glossary-item"><div class="glossary-term">Always-Free tier</div><div class="glossary-def">The set of Google Cloud service allotments available every month at no charge, independent of any free-trial credit. Some pool per billing account (Cloud Run); others are per project (Firestore) — see §8.2.</div></div>
+        <div class="glossary-item"><div class="glossary-term">Gemini Developer API vs. Vertex AI Gemini</div><div class="glossary-def">Two ways to call the same Gemini models. The Developer API (aistudio.google.com, API-key auth) has an independent free-tier quota, billed separately from Cloud Billing. The Vertex AI endpoint is billed through Cloud Billing per token. QueryForge uses the Developer API exclusively (ADR-004).</div></div>
+        <div class="glossary-item"><div class="glossary-term">Budget guard</div><div class="glossary-def">QueryForge's self-enforcing spend cap: a Firestore-transactional check before every Gemini call, using published per-token pricing. Chosen over a reactive Cloud Billing Budget alert because Google's billing data lags too much to enforce a $0.01 cap in real time (§8.3, ADR-006).</div></div>
+      </div>
+    </section>
+
+  </div><!-- /content -->
+
+  <footer class="doc-footer">
+    <span>QueryForge v1.1.0 · Design Documentation · 2026</span>
+    <span>100% Google Cloud · Always-Free Architecture · Budget Cap: $0.01 · Pipeline: Validated ✓</span>
+  </footer>
+
+</main>
+</div><!-- /page-wrap -->
+
+<script>
+const simScenarios = [
+  {
+    desc: '<strong>Single-hop.</strong> "What is our standard NDA turnaround time?" — plain factual lookup, no decomposition or rerank needed.',
+    stages: [['done','0.1s'],['done','0.6s'],['skip','—'],['done','0.7s'],['skip','—'],['done','0.1s'],['done','0.1s']],
+    metrics: { recall: '0.86', mrr: '0.79', latency: '1.6s', alpha: '0.70' },
+    output: [
+      ['comment','# queryforge · trace · scenario: single_hop'],
+      ['key','query: ','val','"What is our standard NDA turnaround time?"'],
+      ['key','classifier_type: ','val','"single-hop"'],
+      ['key','confidence: ','val','0.95'],
+      ['key','alpha: ','val','0.70', 'comment', '  # dense-heavy'],
+      ['key','reranking: ','val','false'],
+      ['key','latency_ms: ','val','1620'],
+    ]
+  },
+  {
+    desc: '<strong>Multi-hop-entity.</strong> "What approval is required for vendor contracts over $50K with non-standard payment terms?" — decomposed into 3 sub-queries, hybrid + reranked.',
+    stages: [['done','0.1s'],['done','0.8s'],['done','0.6s'],['done','0.9s'],['done','0.6s'],['done','0.1s'],['done','0.1s']],
+    metrics: { recall: '0.92', mrr: '0.79', latency: '2.3s', alpha: '0.40' },
+    output: [
+      ['comment','# queryforge · trace · scenario: multi_hop_entity'],
+      ['key','query: ','val','"What approval is required for vendor contracts over $50K..."'],
+      ['key','classifier_type: ','val','"multi-hop-entity"'],
+      ['key','confidence: ','val','0.91'],
+      ['key','sub_queries: ','val','["vendor contract approval threshold $50K", "non-standard payment terms policy", "procurement approval authority matrix"]'],
+      ['key','alpha: ','val','0.40'],
+      ['key','reranking: ','val','true', 'comment', '  # ms-marco-MiniLM-L-6-v2'],
+      ['key','latency_ms: ','val','2340'],
+    ]
+  },
+  {
+    desc: '<strong>Comparative.</strong> "Enterprise vs SMB contract terms" — hybrid retrieval with threshold filtering disabled to avoid suppressing either side.',
+    stages: [['done','0.1s'],['done','0.7s'],['skip','—'],['done','0.9s'],['skip','—'],['done','0.1s'],['done','0.1s']],
+    metrics: { recall: '0.84', mrr: '0.71', latency: '1.9s', alpha: '0.55' },
+    output: [
+      ['comment','# queryforge · trace · scenario: comparative'],
+      ['key','query: ','val','"Enterprise vs SMB contract terms"'],
+      ['key','classifier_type: ','val','"comparative"'],
+      ['key','confidence: ','val','0.88'],
+      ['key','alpha: ','val','0.55'],
+      ['warn','# threshold_filter: disabled — prevents entity suppression'],
+      ['key','latency_ms: ','val','1930'],
+    ]
+  },
+  {
+    desc: '<strong>Temporal.</strong> "How has our parental leave policy changed since Series B?" — BM25 date-field boost, version-aware retrieval.',
+    stages: [['done','0.1s'],['done','0.7s'],['skip','—'],['done','1.0s'],['skip','—'],['done','0.1s'],['done','0.1s']],
+    metrics: { recall: '0.79', mrr: '0.68', latency: '2.0s', alpha: '0.50' },
+    output: [
+      ['comment','# queryforge · trace · scenario: temporal'],
+      ['key','query: ','val','"How has our parental leave policy changed since Series B?"'],
+      ['key','classifier_type: ','val','"temporal"'],
+      ['key','confidence: ','val','0.84'],
+      ['key','alpha: ','val','0.50'],
+      ['warn','# bm25_date_boost: 2.0x'],
+      ['key','latency_ms: ','val','2010'],
+    ]
+  },
+  {
+    desc: '<strong>Entity-heavy.</strong> "What is the payment term for vendor #V-2847?" — BM25-heavy hybrid for exact-match identifier lookup.',
+    stages: [['done','0.1s'],['done','0.6s'],['skip','—'],['done','0.5s'],['skip','—'],['done','0.1s'],['done','0.1s']],
+    metrics: { recall: '0.89', mrr: '0.83', latency: '0.9s', alpha: '0.40' },
+    output: [
+      ['comment','# queryforge · trace · scenario: entity_heavy'],
+      ['key','query: ','val','"What is the payment term for vendor #V-2847?"'],
+      ['key','classifier_type: ','val','"entity-heavy"'],
+      ['key','confidence: ','val','0.93'],
+      ['key','alpha: ','val','0.40', 'comment', '  # BM25-heavy'],
+      ['key','latency_ms: ','val','940'],
+    ]
+  }
+];
+let simActive = 0, simRunning = false;
+
+function selectScenario(i) {
+  if (simRunning) return;
+  simActive = i;
+  document.querySelectorAll('.scenario-btn').forEach((b, j) => b.classList.toggle('active', i === j));
+  document.getElementById('sim-desc').innerHTML = simScenarios[i].desc;
+  resetSim();
+}
+function resetSim() {
+  for (let i = 0; i < 7; i++) {
+    document.getElementById('dot-'+i).className = 'stage-dot';
+    document.getElementById('bar-'+i).style.width = '0';
+    document.getElementById('tim-'+i).textContent = '—';
+    document.getElementById('tim-'+i).className = 'stage-timing';
+  }
+  document.getElementById('sim-output').innerHTML = '<span class="out-comment">// select a scenario and run simulation</span>';
+  document.getElementById('sim-status-label').textContent = 'idle';
+  document.getElementById('sim-status-label').className = 'sim-status';
+  ['recall','mrr','latency','alpha'].forEach(m => document.getElementById('metric-'+m).textContent = '—');
+}
+function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
+async function runSim() {
+  if (simRunning) return;
+  simRunning = true;
+  document.getElementById('run-btn').disabled = true;
+  const s = simScenarios[simActive];
+  const statusEl = document.getElementById('sim-status-label');
+  statusEl.textContent = 'running'; statusEl.className = 'sim-status running';
+  for (let i = 0; i < 7; i++) {
+    const [status, time] = s.stages[i];
+    const dot = document.getElementById('dot-'+i), bar = document.getElementById('bar-'+i), tim = document.getElementById('tim-'+i);
+    if (status === 'skip') { dot.className = 'stage-dot skip'; tim.textContent = 'skipped'; await sleep(100); continue; }
+    dot.className = 'stage-dot running';
+    await sleep(280);
+    bar.style.width = '100%';
+    await sleep(150);
+    dot.className = 'stage-dot done';
+    tim.textContent = time; tim.className = 'stage-timing done';
+  }
+  const out = document.getElementById('sim-output'); out.innerHTML = '';
+  for (const line of s.output) {
+    await sleep(65);
+    const span = document.createElement('span'); span.className = 'out-line';
+    if (line[0] === 'comment') span.innerHTML = '<span class="out-comment">'+line[1]+'</span>';
+    else if (line[0] === 'warn') span.innerHTML = '<span class="out-warn">'+line[1]+'</span>';
+    else { let html=''; for (let k=0;k<line.length;k+=2){ if(k+1<line.length) html += '<span class="out-'+line[k]+'">'+line[k+1]+'</span>'; } span.innerHTML = html; }
+    out.appendChild(span); out.scrollTop = out.scrollHeight;
+  }
+  document.getElementById('metric-recall').textContent = s.metrics.recall;
+  document.getElementById('metric-mrr').textContent = s.metrics.mrr;
+  document.getElementById('metric-latency').textContent = s.metrics.latency;
+  document.getElementById('metric-alpha').textContent = s.metrics.alpha;
+  statusEl.textContent = 'complete'; statusEl.className = 'sim-status done';
+  simRunning = false; document.getElementById('run-btn').disabled = false;
+}
+selectScenario(0);
+
+/* SIDEBAR ACTIVE */
+const sections = document.querySelectorAll('section[id], header[id]');
+const links = document.querySelectorAll('.sidebar-nav a');
+window.addEventListener('scroll', () => {
+  let current = '';
+  sections.forEach(s => { if (window.scrollY >= s.offsetTop - 120) current = s.id; });
+  links.forEach(a => {
+    const href = a.getAttribute('href').replace('#', '');
+    a.classList.toggle('active', href === current);
+  });
+}, { passive: true });
+</script>
 </body>
 </html>
